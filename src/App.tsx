@@ -5,40 +5,72 @@ class Sprite {
   ctx: CanvasRenderingContext2D;
   image: HTMLImageElement;
   position: { x: number; y: number };
-  frames: { max: number };
+  frames: { max: number; val: number; elapsed: number };
   width: number;
   height: number;
+  moving?: boolean;
+  sprites?: {
+    up: HTMLImageElement;
+    down: HTMLImageElement;
+    left: HTMLImageElement;
+    right: HTMLImageElement;
+  };
 
   constructor({
     ctx,
     image,
     position,
     frames = { max: 1 },
+    moving = false,
+    sprites,
   }: {
     ctx: CanvasRenderingContext2D;
     image: HTMLImageElement;
     position: { x: number; y: number };
-    frames?: { max: number };
+    frames?: { max: number; val?: number; elapsed?: number };
+    moving?: boolean;
+    sprites?: {
+      up: HTMLImageElement;
+      down: HTMLImageElement;
+      left: HTMLImageElement;
+      right: HTMLImageElement;
+    };
   }) {
     this.ctx = ctx;
     this.image = image;
     this.position = position;
-    this.frames = frames;
+    this.frames = { ...frames, val: 0, elapsed: 0 };
     this.width = this.image.width / frames.max;
     this.height = this.image.height;
+    this.moving = moving;
+    this.sprites = sprites;
   }
   draw() {
     this.ctx.drawImage(
       this.image,
+      this.frames.val * this.width,
       0,
-      0,
-      this.image.width / this.frames.max,
-      this.image.height,
+      this.width,
+      this.height,
       this.position.x,
       this.position.y,
       this.width,
       this.height,
     );
+
+    if (this.frames.max > 1 && this.moving) {
+      this.frames.elapsed++;
+
+      // Higher number = slower animation
+      if (this.frames.elapsed >= 10) {
+        this.frames.elapsed = 0;
+        this.frames.val++;
+
+        if (this.frames.val >= this.frames.max) {
+          this.frames.val = 0;
+        }
+      }
+    }
   }
 }
 
@@ -65,7 +97,7 @@ class Boundary {
   }
 
   draw() {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0)";
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
     this.ctx.fillRect(
       this.position.x,
       this.position.y,
@@ -119,8 +151,8 @@ function App() {
 
     const BackgroundImage = new Image();
     BackgroundImage.src = "/BackgroundTerrain.png";
-    const PlayerImage = new Image();
-    PlayerImage.src = "/playerDown.png";
+    const ForgroundImage = new Image();
+    ForgroundImage.src = "/forground.png";
 
     const keys: { w: boolean; a: boolean; s: boolean; d: boolean } = {
       w: false,
@@ -154,17 +186,40 @@ function App() {
         y: offset.y,
       },
     });
+    const forground = new Sprite({
+      ctx: ctx,
+      image: ForgroundImage,
+      position: {
+        x: offset.x,
+        y: offset.y,
+      },
+    });
+
+    const PlayerUpImage = new Image();
+    PlayerUpImage.src = "/playerUp.png";
+    const PlayerDownImage = new Image();
+    PlayerDownImage.src = "/playerDown.png";
+    const PlayerLeftImage = new Image();
+    PlayerLeftImage.src = "/playerLeft.png";
+    const PlayerRightImage = new Image();
+    PlayerRightImage.src = "/playerRight.png";
     const player = new Sprite({
       ctx: ctx,
-      image: PlayerImage,
+      image: PlayerDownImage,
       position: {
         x: canvas.width / 2 - 192 / 4,
         y: canvas.height / 2 - 68 / 2,
       },
       frames: { max: 4 },
+      sprites: {
+        up: PlayerUpImage,
+        down: PlayerDownImage,
+        right: PlayerRightImage,
+        left: PlayerLeftImage,
+      },
     });
 
-    const movables = [background, ...boundaries];
+    const movables = [background, ...boundaries, forground];
 
     const checkCollision = (
       rect1: Sprite,
@@ -183,14 +238,22 @@ function App() {
     };
     function gameLoop(): void {
       if (!ctx || !canvas) return;
-      background.draw();
 
+      ctx.fillStyle = "rgb(44 87 145)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      background.draw();
       boundaries.forEach((boundary) => {
         boundary.draw();
       });
       player.draw();
+
+      forground.draw();
       let moving = true;
+      player.moving = false;
       if (keys.w && LastKey === "w") {
+        player.image = player.sprites!.up;
+        player.moving = true;
         for (let i = 0; i < boundaries.length; i++) {
           const boundary = boundaries[i];
           if (
@@ -213,13 +276,15 @@ function App() {
           });
         }
       } else if (keys.a && LastKey === "a") {
+        player.image = player.sprites!.left;
+        player.moving = true;
         for (let i = 0; i < boundaries.length; i++) {
           const boundary = boundaries[i];
           if (
             checkCollision(player, {
               ...boundary,
               position: {
-                x: boundary.position.x+3,
+                x: boundary.position.x + 3,
                 y: boundary.position.y,
               },
             })
@@ -230,11 +295,13 @@ function App() {
           }
         }
         if (moving) {
-        movables.forEach((e) => {
-          e.position.x += 3;
-        });
-      }
+          movables.forEach((e) => {
+            e.position.x += 3;
+          });
+        }
       } else if (keys.s && LastKey === "s") {
+        player.moving = true;
+        player.image = player.sprites!.down;
         for (let i = 0; i < boundaries.length; i++) {
           const boundary = boundaries[i];
           if (
@@ -242,7 +309,7 @@ function App() {
               ...boundary,
               position: {
                 x: boundary.position.x,
-                y: boundary.position.y-3,
+                y: boundary.position.y - 3,
               },
             })
           ) {
@@ -252,17 +319,20 @@ function App() {
           }
         }
         if (moving) {
-        movables.forEach((e) => {
-          e.position.y -= 3;
-        });}
+          movables.forEach((e) => {
+            e.position.y -= 3;
+          });
+        }
       } else if (keys.d && LastKey === "d") {
+        player.moving = true;
+        player.image = player.sprites!.right;
         for (let i = 0; i < boundaries.length; i++) {
           const boundary = boundaries[i];
           if (
             checkCollision(player, {
               ...boundary,
               position: {
-                x: boundary.position.x-3,
+                x: boundary.position.x - 3,
                 y: boundary.position.y,
               },
             })
@@ -273,9 +343,10 @@ function App() {
           }
         }
         if (moving) {
-        movables.forEach((e) => {
-          e.position.x -= 3;
-        });}
+          movables.forEach((e) => {
+            e.position.x -= 3;
+          });
+        }
       }
       requestAnimationFrame(gameLoop);
     }
