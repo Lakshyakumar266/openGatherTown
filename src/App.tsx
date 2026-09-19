@@ -65,7 +65,7 @@ class Boundary {
   }
 
   draw() {
-    this.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0)";
     this.ctx.fillRect(
       this.position.x,
       this.position.y,
@@ -189,7 +189,7 @@ function App() {
         boundary.draw();
       });
       player.draw();
-
+      let moving = true;
       if (keys.w && LastKey === "w") {
         for (let i = 0; i < boundaries.length; i++) {
           const boundary = boundaries[i];
@@ -203,23 +203,79 @@ function App() {
             })
           ) {
             console.log("coliding");
+            moving = false;
+            break;
           }
         }
-        movables.forEach((e) => {
-          e.position.y += 3;
-        });
+        if (moving) {
+          movables.forEach((e) => {
+            e.position.y += 3;
+          });
+        }
       } else if (keys.a && LastKey === "a") {
+        for (let i = 0; i < boundaries.length; i++) {
+          const boundary = boundaries[i];
+          if (
+            checkCollision(player, {
+              ...boundary,
+              position: {
+                x: boundary.position.x+3,
+                y: boundary.position.y,
+              },
+            })
+          ) {
+            console.log("coliding");
+            moving = false;
+            break;
+          }
+        }
+        if (moving) {
         movables.forEach((e) => {
           e.position.x += 3;
         });
+      }
       } else if (keys.s && LastKey === "s") {
+        for (let i = 0; i < boundaries.length; i++) {
+          const boundary = boundaries[i];
+          if (
+            checkCollision(player, {
+              ...boundary,
+              position: {
+                x: boundary.position.x,
+                y: boundary.position.y-3,
+              },
+            })
+          ) {
+            console.log("coliding");
+            moving = false;
+            break;
+          }
+        }
+        if (moving) {
         movables.forEach((e) => {
           e.position.y -= 3;
-        });
+        });}
       } else if (keys.d && LastKey === "d") {
+        for (let i = 0; i < boundaries.length; i++) {
+          const boundary = boundaries[i];
+          if (
+            checkCollision(player, {
+              ...boundary,
+              position: {
+                x: boundary.position.x-3,
+                y: boundary.position.y,
+              },
+            })
+          ) {
+            console.log("coliding");
+            moving = false;
+            break;
+          }
+        }
+        if (moving) {
         movables.forEach((e) => {
           e.position.x -= 3;
-        });
+        });}
       }
       requestAnimationFrame(gameLoop);
     }
