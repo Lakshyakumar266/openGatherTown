@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { collision } from "./collision";
 
 class Sprite {
@@ -6,6 +6,8 @@ class Sprite {
   image: HTMLImageElement;
   position: { x: number; y: number };
   frames: { max: number };
+  width: number;
+  height: number;
 
   constructor({
     ctx,
@@ -22,6 +24,8 @@ class Sprite {
     this.image = image;
     this.position = position;
     this.frames = frames;
+    this.width = this.image.width / frames.max;
+    this.height = this.image.height;
   }
   draw() {
     this.ctx.drawImage(
@@ -32,8 +36,8 @@ class Sprite {
       this.image.height,
       this.position.x,
       this.position.y,
-      this.image.width / this.frames.max,
-      this.image.height,
+      this.width,
+      this.height,
     );
   }
 }
@@ -73,15 +77,19 @@ class Boundary {
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const collisionsMap: number[][] = [];
+
+  const collisionsMap: number[][] = useMemo(() => {
+    const map: number[][] = [];
+    for (let i = 0; i < collision.length; i += 64) {
+      map.push(collision.slice(i, i + 64));
+    }
+    return map;
+  }, []);
+
   const offset = {
     x: 0,
     y: -430,
   };
-  for (let i = 0; i < collision.length; i += 64) {
-    collisionsMap.push(collision.slice(i, i + 64));
-  }
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -150,26 +158,53 @@ function App() {
       ctx: ctx,
       image: PlayerImage,
       position: {
-        x: canvas.width / 2 - PlayerImage.width / 4,
-        y: canvas.height / 2 - PlayerImage.height / 2,
+        x: canvas.width / 2 - 192 / 4,
+        y: canvas.height / 2 - 68 / 2,
       },
       frames: { max: 4 },
     });
 
     const movables = [background, ...boundaries];
 
+    const checkCollision = (
+      rect1: Sprite,
+      rect2: {
+        position: { x: number; y: number };
+        width: number;
+        height: number;
+      },
+    ) => {
+      return (
+        rect1.position.x < rect2.position.x + rect2.width &&
+        rect1.position.x + rect1.width > rect2.position.x &&
+        rect1.position.y < rect2.position.y + rect2.height &&
+        rect1.position.y + rect1.width > rect2.position.y
+      );
+    };
     function gameLoop(): void {
       if (!ctx || !canvas) return;
       background.draw();
 
-      boundaries.forEach((b) => {
-        b.draw();
+      boundaries.forEach((boundary) => {
+        boundary.draw();
       });
-
-      player.draw();
       player.draw();
 
       if (keys.w && LastKey === "w") {
+        for (let i = 0; i < boundaries.length; i++) {
+          const boundary = boundaries[i];
+          if (
+            checkCollision(player, {
+              ...boundary,
+              position: {
+                x: boundary.position.x,
+                y: boundary.position.y + 3,
+              },
+            })
+          ) {
+            console.log("coliding");
+          }
+        }
         movables.forEach((e) => {
           e.position.y += 3;
         });
@@ -195,7 +230,7 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [collisionsMap]);
+  }, [collisionsMap, offset.x, offset.y]);
 
   return (
     <div style={{ backgroundColor: "black" }}>
