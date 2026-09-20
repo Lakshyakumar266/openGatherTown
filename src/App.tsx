@@ -161,22 +161,91 @@ function App() {
       d: false,
     };
 
-    let LastKey = "";
+    type MovementKey = keyof typeof keys;
+    const keyOrder: MovementKey[] = [];
+    let zoom = 1;
+
+    const clampZoom = (value: number) =>
+      Math.max(0.9, Math.min(1.5, value));
+
+    const changeZoom = (amount: number) => {
+      zoom = clampZoom(zoom + amount);
+    };
+
+    const isMovementKey = (
+      value: string,
+    ): value is MovementKey =>
+      value === "w" ||
+      value === "a" ||
+      value === "s" ||
+      value === "d";
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
 
-      if (key in keys) keys[key as keyof typeof keys] = true;
-      LastKey = key.toString();
+      if (
+        key === "+" ||
+        key === "="
+      ) {
+        e.preventDefault();
+        changeZoom(0.05);
+        return;
+      }
+
+      if (
+        key === "-" ||
+        key === "_"
+      ) {
+        e.preventDefault();
+        changeZoom(-0.05);
+        return;
+      }
+
+      if (!isMovementKey(key)) return;
+
+      keys[key] = true;
+
+      // Keep the most recently pressed key on top. Repeated keydown events
+      // must not create duplicates, or releasing once would leave it stuck.
+      const existingIndex = keyOrder.indexOf(key);
+      if (existingIndex !== -1) {
+        keyOrder.splice(existingIndex, 1);
+      }
+      keyOrder.push(key);
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-      if (key in keys) keys[key as keyof typeof keys] = false;
+
+      if (!isMovementKey(key)) return;
+
+      keys[key] = false;
+      const index = keyOrder.indexOf(key);
+      if (index !== -1) {
+        keyOrder.splice(index, 1);
+      }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    const handleWindowBlur = () => {
+      keyOrder.length = 0;
+      keys.w = false;
+      keys.a = false;
+      keys.s = false;
+      keys.d = false;
+    };
+
+      window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      changeZoom(e.deltaY < 0 ? 0.05 : -0.05);
+    };
+
+    canvas.addEventListener("wheel", handleWheel, {
+      passive: false,
+    });
 
     const background = new Sprite({
       ctx: ctx,
@@ -242,6 +311,11 @@ function App() {
       ctx.fillStyle = "rgb(44 87 145)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
       background.draw();
       boundaries.forEach((boundary) => {
         boundary.draw();
@@ -251,7 +325,9 @@ function App() {
       forground.draw();
       let moving = true;
       player.moving = false;
-      if (keys.w && LastKey === "w") {
+      const activeKey = keyOrder[keyOrder.length - 1];
+
+      if (activeKey === "w" && keys.w) {
         player.image = player.sprites!.up;
         player.moving = true;
         for (let i = 0; i < boundaries.length; i++) {
@@ -275,7 +351,7 @@ function App() {
             e.position.y += 3;
           });
         }
-      } else if (keys.a && LastKey === "a") {
+      } else if (activeKey === "a" && keys.a) {
         player.image = player.sprites!.left;
         player.moving = true;
         for (let i = 0; i < boundaries.length; i++) {
@@ -299,7 +375,7 @@ function App() {
             e.position.x += 3;
           });
         }
-      } else if (keys.s && LastKey === "s") {
+      } else if (activeKey === "s" && keys.s) {
         player.moving = true;
         player.image = player.sprites!.down;
         for (let i = 0; i < boundaries.length; i++) {
@@ -323,7 +399,7 @@ function App() {
             e.position.y -= 3;
           });
         }
-      } else if (keys.d && LastKey === "d") {
+      } else if (activeKey === "d" && keys.d) {
         player.moving = true;
         player.image = player.sprites!.right;
         for (let i = 0; i < boundaries.length; i++) {
@@ -348,6 +424,8 @@ function App() {
           });
         }
       }
+
+      ctx.restore();
       requestAnimationFrame(gameLoop);
     }
 
@@ -356,6 +434,8 @@ function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+      canvas.removeEventListener("wheel", handleWheel);
     };
   }, [collisionsMap, offset.x, offset.y]);
 
