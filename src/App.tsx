@@ -1,374 +1,563 @@
-import { useEffect, useMemo, useRef } from "react";
-import { collision } from "./collision";
+// import { useEffect, useMemo, useRef } from "react";
+// import { collision } from "./collision";
 
-class Sprite {
-  ctx: CanvasRenderingContext2D;
-  image: HTMLImageElement;
-  position: { x: number; y: number };
-  frames: { max: number; val: number; elapsed: number };
-  width: number;
-  height: number;
-  moving?: boolean;
-  sprites?: {
-    up: HTMLImageElement;
-    down: HTMLImageElement;
-    left: HTMLImageElement;
-    right: HTMLImageElement;
-  };
+// class Sprite {
+//   ctx: CanvasRenderingContext2D;
+//   image: HTMLImageElement;
+//   position: { x: number; y: number };
+//   frames: { max: number; val: number; elapsed: number };
+//   width: number;
+//   height: number;
+//   moving?: boolean;
+//   sprites?: {
+//     up: HTMLImageElement;
+//     down: HTMLImageElement;
+//     left: HTMLImageElement;
+//     right: HTMLImageElement;
+//   };
 
-  constructor({
-    ctx,
-    image,
-    position,
-    frames = { max: 1 },
-    moving = false,
-    sprites,
-  }: {
-    ctx: CanvasRenderingContext2D;
-    image: HTMLImageElement;
-    position: { x: number; y: number };
-    frames?: { max: number; val?: number; elapsed?: number };
-    moving?: boolean;
-    sprites?: {
-      up: HTMLImageElement;
-      down: HTMLImageElement;
-      left: HTMLImageElement;
-      right: HTMLImageElement;
-    };
-  }) {
-    this.ctx = ctx;
-    this.image = image;
-    this.position = position;
-    this.frames = { ...frames, val: 0, elapsed: 0 };
-    this.width = this.image.width / frames.max;
-    this.height = this.image.height;
-    this.moving = moving;
-    this.sprites = sprites;
-  }
-  draw() {
-    this.ctx.drawImage(
-      this.image,
-      this.frames.val * this.width,
-      0,
-      this.width,
-      this.height,
-      this.position.x,
-      this.position.y,
-      this.width,
-      this.height,
-    );
+//   constructor({
+//     ctx,
+//     image,
+//     position,
+//     frames = { max: 1 },
+//     moving = false,
+//     sprites,
+//   }: {
+//     ctx: CanvasRenderingContext2D;
+//     image: HTMLImageElement;
+//     position: { x: number; y: number };
+//     frames?: { max: number; val?: number; elapsed?: number };
+//     moving?: boolean;
+//     sprites?: {
+//       up: HTMLImageElement;
+//       down: HTMLImageElement;
+//       left: HTMLImageElement;
+//       right: HTMLImageElement;
+//     };
+//   }) {
+//     this.ctx = ctx;
+//     this.image = image;
+//     this.position = position;
+//     this.frames = { ...frames, val: 0, elapsed: 0 };
+//     this.width = this.image.width / frames.max;
+//     this.height = this.image.height;
+//     this.moving = moving;
+//     this.sprites = sprites;
+//   }
+//   draw() {
+//     this.ctx.drawImage(
+//       this.image,
+//       this.frames.val * this.width,
+//       0,
+//       this.width,
+//       this.height,
+//       this.position.x,
+//       this.position.y,
+//       this.width,
+//       this.height,
+//     );
 
-    if (this.frames.max > 1 && this.moving) {
-      this.frames.elapsed++;
+//     if (this.frames.max > 1 && this.moving) {
+//       this.frames.elapsed++;
 
-      // Higher number = slower animation
-      if (this.frames.elapsed >= 10) {
-        this.frames.elapsed = 0;
-        this.frames.val++;
+//       // Higher number = slower animation
+//       if (this.frames.elapsed >= 10) {
+//         this.frames.elapsed = 0;
+//         this.frames.val++;
 
-        if (this.frames.val >= this.frames.max) {
-          this.frames.val = 0;
-        }
-      }
-    }
-  }
-}
+//         if (this.frames.val >= this.frames.max) {
+//           this.frames.val = 0;
+//         }
+//       }
+//     }
+//   }
+// }
 
-class Boundary {
-  static width = 64;
-  static height = 64;
+// class Boundary {
+//   static width = 64;
+//   static height = 64;
 
-  ctx: CanvasRenderingContext2D;
-  position: { x: number; y: number };
-  width: number;
-  height: number;
+//   ctx: CanvasRenderingContext2D;
+//   position: { x: number; y: number };
+//   width: number;
+//   height: number;
 
-  constructor({
-    ctx,
-    position,
-  }: {
-    ctx: CanvasRenderingContext2D;
-    position: { x: number; y: number };
-  }) {
-    this.ctx = ctx;
-    this.position = position;
-    this.width = Boundary.width;
-    this.height = Boundary.height;
-  }
+//   constructor({
+//     ctx,
+//     position,
+//   }: {
+//     ctx: CanvasRenderingContext2D;
+//     position: { x: number; y: number };
+//   }) {
+//     this.ctx = ctx;
+//     this.position = position;
+//     this.width = Boundary.width;
+//     this.height = Boundary.height;
+//   }
 
-  draw() {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
-    this.ctx.fillRect(
-      this.position.x,
-      this.position.y,
-      this.width,
-      this.height,
-    );
-  }
-}
+//   draw() {
+//     this.ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
+//     this.ctx.fillRect(
+//       this.position.x,
+//       this.position.y,
+//       this.width,
+//       this.height,
+//     );
+//   }
+// }
 
-function App() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+// function App() {
+//   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const collisionsMap: number[][] = useMemo(() => {
-    const map: number[][] = [];
-    for (let i = 0; i < collision.length; i += 64) {
-      map.push(collision.slice(i, i + 64));
-    }
-    return map;
-  }, []);
+//   const collisionsMap: number[][] = useMemo(() => {
+//     const map: number[][] = [];
+//     for (let i = 0; i < collision.length; i += 64) {
+//       map.push(collision.slice(i, i + 64));
+//     }
+//     return map;
+//   }, []);
 
-  const offset = {
-    x: 0,
-    y: -430,
-  };
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+//   const offset = {
+//     x: 0,
+//     y: -430,
+//   };
+//   useEffect(() => {
+//     const canvas = canvasRef.current;
+//     if (!canvas) return;
+//     const ctx = canvas.getContext("2d");
+//     if (!ctx) return;
 
-    const boundaries: Boundary[] = [];
+//     const boundaries: Boundary[] = [];
 
-    collisionsMap.forEach((row, i) => {
-      row.forEach((item, j) => {
-        if (item != 0) {
-          boundaries.push(
-            new Boundary({
-              ctx,
-              position: {
-                x: j * Boundary.width + offset.x,
-                y: i * Boundary.height + offset.y,
-              },
-            }),
-          );
-        }
-      });
-    });
+//     collisionsMap.forEach((row, i) => {
+//       row.forEach((item, j) => {
+//         if (item != 0) {
+//           boundaries.push(
+//             new Boundary({
+//               ctx,
+//               position: {
+//                 x: j * Boundary.width + offset.x,
+//                 y: i * Boundary.height + offset.y,
+//               },
+//             }),
+//           );
+//         }
+//       });
+//     });
 
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+//     ctx.fillStyle = "white";
+//     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const BackgroundImage = new Image();
-    BackgroundImage.src = "/BackgroundTerrain.png";
-    const ForgroundImage = new Image();
-    ForgroundImage.src = "/forground.png";
+//     const BackgroundImage = new Image();
+//     BackgroundImage.src = "/BackgroundTerrain.png";
+//     const ForgroundImage = new Image();
+//     ForgroundImage.src = "/forground.png";
 
-    const keys: { w: boolean; a: boolean; s: boolean; d: boolean } = {
-      w: false,
-      a: false,
-      s: false,
-      d: false,
-    };
+//     const keys: { w: boolean; a: boolean; s: boolean; d: boolean } = {
+//       w: false,
+//       a: false,
+//       s: false,
+//       d: false,
+//     };
 
-    let LastKey = "";
+//     let LastKey = "";
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
+//     const handleKeyDown = (e: KeyboardEvent) => {
+//       const key = e.key.toLowerCase();
 
-      if (key in keys) keys[key as keyof typeof keys] = true;
-      LastKey = key.toString();
-    };
+//       if (key in keys) keys[key as keyof typeof keys] = true;
+//       LastKey = key.toString();
+//     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      if (key in keys) keys[key as keyof typeof keys] = false;
-    };
+//     const handleKeyUp = (e: KeyboardEvent) => {
+//       const key = e.key.toLowerCase();
+//       if (key in keys) keys[key as keyof typeof keys] = false;
+//     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
+//     window.addEventListener("keydown", handleKeyDown);
+//     window.addEventListener("keyup", handleKeyUp);
 
-    const background = new Sprite({
-      ctx: ctx,
-      image: BackgroundImage,
-      position: {
-        x: offset.x,
-        y: offset.y,
-      },
-    });
-    const forground = new Sprite({
-      ctx: ctx,
-      image: ForgroundImage,
-      position: {
-        x: offset.x,
-        y: offset.y,
-      },
-    });
+//     const background = new Sprite({
+//       ctx: ctx,
+//       image: BackgroundImage,
+//       position: {
+//         x: offset.x,
+//         y: offset.y,
+//       },
+//     });
+//     const forground = new Sprite({
+//       ctx: ctx,
+//       image: ForgroundImage,
+//       position: {
+//         x: offset.x,
+//         y: offset.y,
+//       },
+//     });
 
-    const PlayerUpImage = new Image();
-    PlayerUpImage.src = "/playerUp.png";
-    const PlayerDownImage = new Image();
-    PlayerDownImage.src = "/playerDown.png";
-    const PlayerLeftImage = new Image();
-    PlayerLeftImage.src = "/playerLeft.png";
-    const PlayerRightImage = new Image();
-    PlayerRightImage.src = "/playerRight.png";
-    const player = new Sprite({
-      ctx: ctx,
-      image: PlayerDownImage,
-      position: {
-        x: canvas.width / 2 - 192 / 4,
-        y: canvas.height / 2 - 68 / 2,
-      },
-      frames: { max: 4 },
-      sprites: {
-        up: PlayerUpImage,
-        down: PlayerDownImage,
-        right: PlayerRightImage,
-        left: PlayerLeftImage,
-      },
-    });
+//     const PlayerUpImage = new Image();
+//     PlayerUpImage.src = "/playerUp.png";
+//     const PlayerDownImage = new Image();
+//     PlayerDownImage.src = "/playerDown.png";
+//     const PlayerLeftImage = new Image();
+//     PlayerLeftImage.src = "/playerLeft.png";
+//     const PlayerRightImage = new Image();
+//     PlayerRightImage.src = "/playerRight.png";
+//     const player = new Sprite({
+//       ctx: ctx,
+//       image: PlayerDownImage,
+//       position: {
+//         x: canvas.width / 2 - 192 / 4,
+//         y: canvas.height / 2 - 68 / 2,
+//       },
+//       frames: { max: 4 },
+//       sprites: {
+//         up: PlayerUpImage,
+//         down: PlayerDownImage,
+//         right: PlayerRightImage,
+//         left: PlayerLeftImage,
+//       },
+//     });
 
-    const movables = [background, ...boundaries, forground];
+//     const movables = [background, ...boundaries, forground];
 
-    const checkCollision = (
-      rect1: Sprite,
-      rect2: {
-        position: { x: number; y: number };
-        width: number;
-        height: number;
-      },
-    ) => {
-      return (
-        rect1.position.x < rect2.position.x + rect2.width &&
-        rect1.position.x + rect1.width > rect2.position.x &&
-        rect1.position.y < rect2.position.y + rect2.height &&
-        rect1.position.y + rect1.width > rect2.position.y
-      );
-    };
-    function gameLoop(): void {
-      if (!ctx || !canvas) return;
+//     const checkCollision = (
+//       rect1: Sprite,
+//       rect2: {
+//         position: { x: number; y: number };
+//         width: number;
+//         height: number;
+//       },
+//     ) => {
+//       return (
+//         rect1.position.x < rect2.position.x + rect2.width &&
+//         rect1.position.x + rect1.width > rect2.position.x &&
+//         rect1.position.y < rect2.position.y + rect2.height &&
+//         rect1.position.y + rect1.width > rect2.position.y
+//       );
+//     };
+//     function gameLoop(): void {
+//       if (!ctx || !canvas) return;
 
-      ctx.fillStyle = "rgb(44 87 145)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+//       ctx.fillStyle = "rgb(44 87 145)";
+//       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      background.draw();
-      boundaries.forEach((boundary) => {
-        boundary.draw();
-      });
-      player.draw();
+//       background.draw();
+//       boundaries.forEach((boundary) => {
+//         boundary.draw();
+//       });
+//       player.draw();
 
-      forground.draw();
-      let moving = true;
-      player.moving = false;
-      if (keys.w && LastKey === "w") {
-        player.image = player.sprites!.up;
-        player.moving = true;
-        for (let i = 0; i < boundaries.length; i++) {
-          const boundary = boundaries[i];
-          if (
-            checkCollision(player, {
-              ...boundary,
-              position: {
-                x: boundary.position.x,
-                y: boundary.position.y + 3,
-              },
-            })
-          ) {
-            console.log("coliding");
-            moving = false;
-            break;
-          }
-        }
-        if (moving) {
-          movables.forEach((e) => {
-            e.position.y += 3;
-          });
-        }
-      } else if (keys.a && LastKey === "a") {
-        player.image = player.sprites!.left;
-        player.moving = true;
-        for (let i = 0; i < boundaries.length; i++) {
-          const boundary = boundaries[i];
-          if (
-            checkCollision(player, {
-              ...boundary,
-              position: {
-                x: boundary.position.x + 3,
-                y: boundary.position.y,
-              },
-            })
-          ) {
-            console.log("coliding");
-            moving = false;
-            break;
-          }
-        }
-        if (moving) {
-          movables.forEach((e) => {
-            e.position.x += 3;
-          });
-        }
-      } else if (keys.s && LastKey === "s") {
-        player.moving = true;
-        player.image = player.sprites!.down;
-        for (let i = 0; i < boundaries.length; i++) {
-          const boundary = boundaries[i];
-          if (
-            checkCollision(player, {
-              ...boundary,
-              position: {
-                x: boundary.position.x,
-                y: boundary.position.y - 3,
-              },
-            })
-          ) {
-            console.log("coliding");
-            moving = false;
-            break;
-          }
-        }
-        if (moving) {
-          movables.forEach((e) => {
-            e.position.y -= 3;
-          });
-        }
-      } else if (keys.d && LastKey === "d") {
-        player.moving = true;
-        player.image = player.sprites!.right;
-        for (let i = 0; i < boundaries.length; i++) {
-          const boundary = boundaries[i];
-          if (
-            checkCollision(player, {
-              ...boundary,
-              position: {
-                x: boundary.position.x - 3,
-                y: boundary.position.y,
-              },
-            })
-          ) {
-            console.log("coliding");
-            moving = false;
-            break;
-          }
-        }
-        if (moving) {
-          movables.forEach((e) => {
-            e.position.x -= 3;
-          });
-        }
-      }
-      requestAnimationFrame(gameLoop);
-    }
+//       forground.draw();
+//       let moving = true;
+//       player.moving = false;
+//       if (keys.w && LastKey === "w") {
+//         player.image = player.sprites!.up;
+//         player.moving = true;
+//         for (let i = 0; i < boundaries.length; i++) {
+//           const boundary = boundaries[i];
+//           if (
+//             checkCollision(player, {
+//               ...boundary,
+//               position: {
+//                 x: boundary.position.x,
+//                 y: boundary.position.y + 3,
+//               },
+//             })
+//           ) {
+//             console.log("coliding");
+//             moving = false;
+//             break;
+//           }
+//         }
+//         if (moving) {
+//           movables.forEach((e) => {
+//             e.position.y += 3;
+//           });
+//         }
+//       } else if (keys.a && LastKey === "a") {
+//         player.image = player.sprites!.left;
+//         player.moving = true;
+//         for (let i = 0; i < boundaries.length; i++) {
+//           const boundary = boundaries[i];
+//           if (
+//             checkCollision(player, {
+//               ...boundary,
+//               position: {
+//                 x: boundary.position.x + 3,
+//                 y: boundary.position.y,
+//               },
+//             })
+//           ) {
+//             console.log("coliding");
+//             moving = false;
+//             break;
+//           }
+//         }
+//         if (moving) {
+//           movables.forEach((e) => {
+//             e.position.x += 3;
+//           });
+//         }
+//       } else if (keys.s && LastKey === "s") {
+//         player.moving = true;
+//         player.image = player.sprites!.down;
+//         for (let i = 0; i < boundaries.length; i++) {
+//           const boundary = boundaries[i];
+//           if (
+//             checkCollision(player, {
+//               ...boundary,
+//               position: {
+//                 x: boundary.position.x,
+//                 y: boundary.position.y - 3,
+//               },
+//             })
+//           ) {
+//             console.log("coliding");
+//             moving = false;
+//             break;
+//           }
+//         }
+//         if (moving) {
+//           movables.forEach((e) => {
+//             e.position.y -= 3;
+//           });
+//         }
+//       } else if (keys.d && LastKey === "d") {
+//         player.moving = true;
+//         player.image = player.sprites!.right;
+//         for (let i = 0; i < boundaries.length; i++) {
+//           const boundary = boundaries[i];
+//           if (
+//             checkCollision(player, {
+//               ...boundary,
+//               position: {
+//                 x: boundary.position.x - 3,
+//                 y: boundary.position.y,
+//               },
+//             })
+//           ) {
+//             console.log("coliding");
+//             moving = false;
+//             break;
+//           }
+//         }
+//         if (moving) {
+//           movables.forEach((e) => {
+//             e.position.x -= 3;
+//           });
+//         }
+//       }
+//       requestAnimationFrame(gameLoop);
+//     }
 
-    gameLoop();
+//     gameLoop();
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [collisionsMap, offset.x, offset.y]);
+//     return () => {
+//       window.removeEventListener("keydown", handleKeyDown);
+//       window.removeEventListener("keyup", handleKeyUp);
+//     };
+//   }, [collisionsMap, offset.x, offset.y]);
 
-  return (
-    <div style={{ backgroundColor: "black" }}>
-      <canvas
-        ref={canvasRef}
-        width={innerWidth}
-        height={innerHeight}
-        style={{ display: "block" }}
-      ></canvas>
-    </div>
+//   return (
+//     <div style={{ backgroundColor: "black" }}>
+//       <canvas
+//         ref={canvasRef}
+//         width={innerWidth}
+//         height={innerHeight}
+//         style={{ display: "block" }}
+//       ></canvas>
+//     </div>
+//   );
+// }
+
+// export default App;
+
+
+
+
+import {
+  useState,
+} from 'react';
+
+import {
+  VillageMap,
+} from './components/VillageMap';
+
+import type {
+  Theme,
+} from './game/map/types';
+
+function randomSeed(): number {
+  return Math.floor(
+    Math.random() *
+      2_147_483_647,
   );
 }
 
-export default App;
+export default function App() {
+  const [
+    seed,
+    setSeed,
+  ] = useState(
+    12345,
+  );
+  const [
+    seedText,
+    setSeedText,
+  ] = useState('12345');
+  const [
+    theme,
+    setTheme,
+  ] = useState<Theme>('day');
+  const [
+    debugCollision,
+    setDebugCollision,
+  ] = useState(false);
+
+  const applySeed = () => {
+    const parsed =
+      Number.parseInt(
+        seedText,
+        10,
+      );
+
+    if (
+      Number.isFinite(parsed)
+    ) {
+      setSeed(parsed);
+    }
+  };
+
+  const generateSeed = () => {
+    const next =
+      randomSeed();
+
+    setSeed(next);
+    setSeedText(
+      String(next),
+    );
+  };
+
+  return (
+    <main
+      style={{
+        minHeight: '100vh',
+        padding: 20,
+        background:
+          '#171816',
+        color: '#f2eedf',
+        fontFamily:
+          'ui-monospace, SFMono-Regular, Consolas, monospace',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 12,
+          alignItems:
+            'center',
+          marginBottom: 16,
+        }}
+      >
+        <label>
+          Seed{' '}
+          <input
+            value={seedText}
+            onChange={(event) =>
+              setSeedText(
+                event.target
+                  .value,
+              )
+            }
+            onBlur={applySeed}
+            onKeyDown={(
+              event,
+            ) => {
+              if (
+                event.key ===
+                'Enter'
+              ) {
+                applySeed();
+              }
+            }}
+            style={{
+              width: 130,
+              padding: '7px 9px',
+              background:
+                '#22241f',
+              color: '#f2eedf',
+              border:
+                '1px solid #585d4c',
+            }}
+          />
+        </label>
+
+        <button
+          onClick={applySeed}
+        >
+          Apply Seed
+        </button>
+
+        <button
+          onClick={
+            generateSeed
+          }
+        >
+          Generate New Map
+        </button>
+
+        <button
+          onClick={() =>
+            setTheme(
+              theme === 'day'
+                ? 'night'
+                : 'day',
+            )
+          }
+        >
+          {theme === 'day'
+            ? 'Night'
+            : 'Day'}
+        </button>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={
+              debugCollision
+            }
+            onChange={(event) =>
+              setDebugCollision(
+                event.target
+                  .checked,
+              )
+            }
+          />{' '}
+          Collision
+        </label>
+      </div>
+
+      <div
+        style={{
+          overflow: 'auto',
+          border:
+            '1px solid #3b4036',
+          width: 'fit-content',
+          maxWidth: '100%',
+          background:
+            '#0e120f',
+        }}
+      >
+        <VillageMap
+          seed={seed}
+          theme={theme}
+          debugCollision={
+            debugCollision
+          }
+        />
+      </div>
+    </main>
+  );
+}
