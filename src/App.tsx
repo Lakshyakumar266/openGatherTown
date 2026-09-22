@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { collision } from "./collision";
+import { Boundary, Sprite } from "./class";
 
 const MOVE_SPEED = 5;
-const ANIMATION_FRAME_DELAY = 5;
-const PLAYER_NAME = "me";
 const WAYPOINT_STOP_DISTANCE = 4;
 const SPRINKLE_PARTICLE_COUNT = 24;
 const SPRINKLE_LIFETIME = 34;
@@ -37,112 +36,6 @@ const CARDINAL_DIRECTIONS: Tile[] = [
   { row: 1, col: 0 },
   { row: 0, col: -1 },
 ];
-
-class Sprite {
-  ctx: CanvasRenderingContext2D;
-  image: HTMLImageElement;
-  position: { x: number; y: number };
-  frames: { max: number; val: number; elapsed: number };
-  width: number;
-  height: number;
-  moving?: boolean;
-  sprites?: {
-    up: HTMLImageElement;
-    down: HTMLImageElement;
-    left: HTMLImageElement;
-    right: HTMLImageElement;
-  };
-
-  constructor({
-    ctx,
-    image,
-    position,
-    frames = { max: 1 },
-    moving = false,
-    sprites,
-  }: {
-    ctx: CanvasRenderingContext2D;
-    image: HTMLImageElement;
-    position: { x: number; y: number };
-    frames?: { max: number; val?: number; elapsed?: number };
-    moving?: boolean;
-    sprites?: {
-      up: HTMLImageElement;
-      down: HTMLImageElement;
-      left: HTMLImageElement;
-      right: HTMLImageElement;
-    };
-  }) {
-    this.ctx = ctx;
-    this.image = image;
-    this.position = position;
-    this.frames = { ...frames, val: 0, elapsed: 0 };
-    this.width = this.image.width / frames.max;
-    this.height = this.image.height;
-    this.moving = moving;
-    this.sprites = sprites;
-  }
-  draw() {
-    this.ctx.drawImage(
-      this.image,
-      this.frames.val * this.width,
-      0,
-      this.width,
-      this.height,
-      this.position.x,
-      this.position.y,
-      this.width,
-      this.height,
-    );
-
-    if (this.frames.max > 1 && this.moving) {
-      this.frames.elapsed++;
-
-      // Higher number = slower animation
-      if (this.frames.elapsed >= ANIMATION_FRAME_DELAY) {
-        this.frames.elapsed = 0;
-        this.frames.val++;
-
-        if (this.frames.val >= this.frames.max) {
-          this.frames.val = 0;
-        }
-      }
-    }
-  }
-}
-
-class Boundary {
-  static width = 64;
-  static height = 64;
-
-  ctx: CanvasRenderingContext2D;
-  position: { x: number; y: number };
-  width: number;
-  height: number;
-
-  constructor({
-    ctx,
-    position,
-  }: {
-    ctx: CanvasRenderingContext2D;
-    position: { x: number; y: number };
-  }) {
-    this.ctx = ctx;
-    this.position = position;
-    this.width = Boundary.width;
-    this.height = Boundary.height;
-  }
-
-  draw() {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
-    this.ctx.fillRect(
-      this.position.x,
-      this.position.y,
-      this.width,
-      this.height,
-    );
-  }
-}
 
 const tileKey = (tile: Tile) => `${tile.row},${tile.col}`;
 
@@ -605,6 +498,7 @@ function App() {
     const player = new Sprite({
       ctx: ctx,
       image: PlayerDownImage,
+      name:"mee",
       position: {
         x: canvas.width / 2 - 192 / 4,
         y: canvas.height / 2 - 68 / 2,
@@ -618,7 +512,24 @@ function App() {
       },
     });
 
-    const movables = [background, ...boundaries, forground];
+    const testPlayer = new Sprite({
+      ctx: ctx,
+      image: PlayerDownImage,
+      name:"meeowTOOO",
+      position: {
+        x: canvas.width / 2 - 192+84,
+        y: canvas.height / 2 - 68+84,
+      },
+      frames: { max: 4 },
+      sprites: {
+        up: PlayerUpImage,
+        down: PlayerDownImage,
+        right: PlayerRightImage,
+        left: PlayerLeftImage,
+      },
+    });
+
+    const movables = [background, ...boundaries, forground,testPlayer];
 
     const createSprinkle = (position: Point) => {
       const colors = ["#ffffff", "#ffe082", "#7dd3fc", "#86efac", "#f9a8d4"];
@@ -845,33 +756,32 @@ function App() {
         boundary.draw();
       });
       player.draw();
+      testPlayer.draw();
 
       forground.draw();
       drawSprinkles();
 
-      ctx.save();
-      ctx.font = "bold 12px monospace";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "bottom";
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
-      ctx.fillStyle = "#ffffff";
-      const nameX =
-        player.position.x +
-        player.width / 2;
-      const nameY =
-        player.position.y - 4;
-      ctx.strokeText(
-        PLAYER_NAME,
-        nameX,
-        nameY,
-      );
-      ctx.fillText(
-        PLAYER_NAME,
-        nameX,
-        nameY,
-      );
-      ctx.restore();
+      // ctx.save();
+      // ctx.font = "bold 12px monospace";
+      // ctx.textAlign = "center";
+      // ctx.textBaseline = "bottom";
+      // ctx.lineWidth = 3;
+      // ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+      // ctx.fillStyle = "#ffffff";
+      // const nameX =
+      //   player.position.x +
+      //   player.width / 2;
+      // const nameY = player.position.y - 4;
+      // ctx.strokeText(PLAYER_NAME,
+      //   nameX,
+      //   nameY,
+      // );
+      // ctx.fillText(
+      //   PLAYER_NAME,
+      //   nameX,
+      //   nameY,
+      // );
+      // ctx.restore();
 
       let moving = true;
       player.moving = false;
