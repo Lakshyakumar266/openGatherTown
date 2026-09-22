@@ -13,6 +13,8 @@ const PLAYER_HITBOX = {
   height: 28,
 };
 
+const players: Sprite[] = [];
+
 type Point = { x: number; y: number };
 type Tile = { row: number; col: number };
 type Rect = {
@@ -72,8 +74,7 @@ const isTileInMap = (collisionsMap: number[][], tile: Tile) =>
   tile.col < collisionsMap[0].length;
 
 const isWalkableTile = (collisionsMap: number[][], tile: Tile) =>
-  isTileInMap(collisionsMap, tile) &&
-  collisionsMap[tile.row][tile.col] === 0;
+  isTileInMap(collisionsMap, tile) && collisionsMap[tile.row][tile.col] === 0;
 
 const worldToTile = (point: Point, mapOrigin: Point): Tile => ({
   row: Math.floor((point.y - mapOrigin.y) / Boundary.height),
@@ -309,14 +310,8 @@ const appendExactTargetWaypoints = ({
 
   if (from.x === target.x && from.y === target.y) return nextPath;
 
-  const xThenY = [
-    { x: target.x, y: from.y },
-    target,
-  ];
-  const yThenX = [
-    { x: from.x, y: target.y },
-    target,
-  ];
+  const xThenY = [{ x: target.x, y: from.y }, target];
+  const yThenX = [{ x: from.x, y: target.y }, target];
 
   if (xThenY.every(canStandAt)) {
     nextPath.push(...xThenY);
@@ -387,37 +382,25 @@ function App() {
     let clickPath: Point[] = [];
     let zoom = 1;
 
-    const clampZoom = (value: number) =>
-      Math.max(0.9, Math.min(1.5, value));
+    const clampZoom = (value: number) => Math.max(0.9, Math.min(1.5, value));
 
     const changeZoom = (amount: number) => {
       zoom = clampZoom(zoom + amount);
     };
 
-    const isMovementKey = (
-      value: string,
-    ): value is MovementKey =>
-      value === "w" ||
-      value === "a" ||
-      value === "s" ||
-      value === "d";
+    const isMovementKey = (value: string): value is MovementKey =>
+      value === "w" || value === "a" || value === "s" || value === "d";
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
 
-      if (
-        key === "+" ||
-        key === "="
-      ) {
+      if (key === "+" || key === "=") {
         e.preventDefault();
         changeZoom(0.05);
         return;
       }
 
-      if (
-        key === "-" ||
-        key === "_"
-      ) {
+      if (key === "-" || key === "_") {
         e.preventDefault();
         changeZoom(-0.05);
         return;
@@ -498,7 +481,7 @@ function App() {
     const player = new Sprite({
       ctx: ctx,
       image: PlayerDownImage,
-      name:"mee",
+      name: "mee",
       position: {
         x: canvas.width / 2 - 192 / 4,
         y: canvas.height / 2 - 68 / 2,
@@ -511,14 +494,14 @@ function App() {
         left: PlayerLeftImage,
       },
     });
-
+    players.push(player);
     const testPlayer = new Sprite({
       ctx: ctx,
       image: PlayerDownImage,
-      name:"meeowTOOO",
+      name: "meeowTOOO",
       position: {
-        x: canvas.width / 2 - 192+84,
-        y: canvas.height / 2 - 68+84,
+        x: canvas.width / 2 - 192 + 84,
+        y: canvas.height / 2 - 68 + 84,
       },
       frames: { max: 4 },
       sprites: {
@@ -528,19 +511,16 @@ function App() {
         left: PlayerLeftImage,
       },
     });
-
-    const movables = [background, ...boundaries, forground,testPlayer];
+    players.push(testPlayer);
 
     const createSprinkle = (position: Point) => {
       const colors = ["#ffffff", "#ffe082", "#7dd3fc", "#86efac", "#f9a8d4"];
 
       for (let i = 0; i < SPRINKLE_PARTICLE_COUNT; i++) {
         const angle =
-          (Math.PI * 2 * i) / SPRINKLE_PARTICLE_COUNT +
-          Math.random() * 0.35;
+          (Math.PI * 2 * i) / SPRINKLE_PARTICLE_COUNT + Math.random() * 0.35;
         const speed = 1.6 + Math.random() * 2.6;
-        const life =
-          SPRINKLE_LIFETIME + Math.floor(Math.random() * 14);
+        const life = SPRINKLE_LIFETIME + Math.floor(Math.random() * 14);
 
         sprinkles.push({
           position: { ...position },
@@ -558,10 +538,8 @@ function App() {
 
     const screenToWorld = (clientX: number, clientY: number): Point => {
       const rect = canvas.getBoundingClientRect();
-      const canvasX =
-        ((clientX - rect.left) / rect.width) * canvas.width;
-      const canvasY =
-        ((clientY - rect.top) / rect.height) * canvas.height;
+      const canvasX = ((clientX - rect.left) / rect.width) * canvas.width;
+      const canvasY = ((clientY - rect.top) / rect.height) * canvas.height;
 
       return {
         x: (canvasX - canvas.width / 2) / zoom + canvas.width / 2,
@@ -569,20 +547,9 @@ function App() {
       };
     };
 
-    const moveWorld = (delta: Point) => {
-      movables.forEach((movable) => {
-        movable.position.x += delta.x;
-        movable.position.y += delta.y;
-      });
-
-      clickPath.forEach((waypoint) => {
-        waypoint.x += delta.x;
-        waypoint.y += delta.y;
-      });
-      sprinkles.forEach((particle) => {
-        particle.position.x += delta.x;
-        particle.position.y += delta.y;
-      });
+    const movePlayer = (player: Sprite, delta: Point) => {
+      player.position.x += delta.x;
+      player.position.y += delta.y;
     };
 
     const playerCenter = (): Point => ({
@@ -605,20 +572,34 @@ function App() {
         playerSize: playerSize(),
       });
 
-    const wouldCollideAfterWorldMove = (delta: Point) => {
-      const movedHitbox = getPlayerHitbox(player.position);
+    const wouldCollideAfterPlayerMove = (delta: Point) => {
+      const nextPlayerPosition = {
+        x: player.position.x + delta.x,
+        y: player.position.y + delta.y,
+      };
 
-      movedHitbox.position.x -= delta.x;
-      movedHitbox.position.y -= delta.y;
+      const nextPlayerHitbox = getPlayerHitbox(nextPlayerPosition);
 
       for (let i = 0; i < boundaries.length; i++) {
         const boundary = boundaries[i];
-
-        if (checkCollision(movedHitbox, boundary)) {
+        if (
+          checkCollision(nextPlayerHitbox, {
+            position: boundary.position,
+            width: boundary.width,
+            height: boundary.height,
+          })
+        ) {
           return true;
         }
       }
+      console.log(players);
 
+      for (const otherPlayer of players) {
+        if (otherPlayer === player) continue;
+        else if (checkCollision(nextPlayerHitbox, otherPlayer)) {
+          return true;
+        }
+      }
       return false;
     };
 
@@ -704,8 +685,7 @@ function App() {
       const distanceY = waypoint.y - center.y;
       const hasHorizontalDistance =
         Math.abs(distanceX) > WAYPOINT_STOP_DISTANCE;
-      const hasVerticalDistance =
-        Math.abs(distanceY) > WAYPOINT_STOP_DISTANCE;
+      const hasVerticalDistance = Math.abs(distanceY) > WAYPOINT_STOP_DISTANCE;
 
       if (!hasHorizontalDistance && !hasVerticalDistance) {
         clickPath.shift();
@@ -715,9 +695,9 @@ function App() {
       const axis: "x" | "y" = hasHorizontalDistance ? "x" : "y";
       const axisDistance = axis === "x" ? distanceX : distanceY;
       const step = Math.min(MOVE_SPEED, Math.abs(axisDistance));
-      const worldMove = {
-        x: axis === "x" ? -Math.sign(axisDistance) * step : 0,
-        y: axis === "y" ? -Math.sign(axisDistance) * step : 0,
+      const playerMove = {
+        x: axis === "x" ? Math.sign(axisDistance) * step : 0,
+        y: axis === "y" ? Math.sign(axisDistance) * step : 0,
       };
 
       player.moving = true;
@@ -730,18 +710,32 @@ function App() {
           distanceY > 0 ? player.sprites!.down : player.sprites!.up;
       }
 
-      if (wouldCollideAfterWorldMove(worldMove)) {
+      if (wouldCollideAfterPlayerMove(playerMove)) {
         clickPath = [];
         player.moving = false;
         return false;
       }
 
-      moveWorld(worldMove);
+      movePlayer(player, playerMove);
       return true;
+    };
+
+    const camera = {
+      position: {
+        x: player.position.x + player.width / 2,
+        y: player.position.y + player.height / 2,
+      },
+    };
+
+    const updateCamera = () => {
+      camera.position.x = player.position.x + player.width / 2;
+      camera.position.y = player.position.y + player.height / 2;
     };
 
     function gameLoop(): void {
       if (!ctx || !canvas) return;
+
+      updateCamera();
 
       ctx.fillStyle = "rgb(44 87 145)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -749,18 +743,19 @@ function App() {
       ctx.save();
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(zoom, zoom);
-      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+      ctx.translate(-camera.position.x, -camera.position.y);
 
       background.draw();
       boundaries.forEach((boundary) => {
         boundary.draw();
       });
-      player.draw();
       testPlayer.draw();
+      player.draw();
 
       forground.draw();
       drawSprinkles();
 
+      // // ~~~~~~TEMP CODE
       // ctx.save();
       // ctx.font = "bold 12px monospace";
       // ctx.textAlign = "center";
@@ -768,20 +763,22 @@ function App() {
       // ctx.lineWidth = 3;
       // ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
       // ctx.fillStyle = "#ffffff";
-      // const nameX =
-      //   player.position.x +
-      //   player.width / 2;
+      // const nameX = player.position.x + player.width / 2;
       // const nameY = player.position.y - 4;
-      // ctx.strokeText(PLAYER_NAME,
+
+      // ctx.strokeText(
+      //   `${wouldCollideAfterPlayerMove(player.position)} for: ${player.position.x}, ${player.position.y}`,
       //   nameX,
       //   nameY,
       // );
+
       // ctx.fillText(
-      //   PLAYER_NAME,
+      //   `${wouldCollideAfterPlayerMove(player.position)} for: ${player.position.x}, ${player.position.y}`,
       //   nameX,
       //   nameY,
       // );
       // ctx.restore();
+      // // TEMP CODE~~~~~~
 
       let moving = true;
       player.moving = false;
@@ -790,42 +787,42 @@ function App() {
       if (activeKey === "w" && keys.w) {
         player.image = player.sprites!.up;
         player.moving = true;
-        if (wouldCollideAfterWorldMove({ x: 0, y: MOVE_SPEED })) {
+        if (wouldCollideAfterPlayerMove({ x: 0, y: -MOVE_SPEED })) {
           console.log("coliding");
           moving = false;
         }
         if (moving) {
-          moveWorld({ x: 0, y: MOVE_SPEED });
+          movePlayer(player, { x: 0, y: -MOVE_SPEED });
         }
       } else if (activeKey === "a" && keys.a) {
         player.image = player.sprites!.left;
         player.moving = true;
-        if (wouldCollideAfterWorldMove({ x: MOVE_SPEED, y: 0 })) {
+        if (wouldCollideAfterPlayerMove({ x: -MOVE_SPEED, y: 0 })) {
           console.log("coliding");
           moving = false;
         }
         if (moving) {
-          moveWorld({ x: MOVE_SPEED, y: 0 });
+          movePlayer(player, { x: -MOVE_SPEED, y: 0 });
         }
       } else if (activeKey === "s" && keys.s) {
         player.moving = true;
         player.image = player.sprites!.down;
-        if (wouldCollideAfterWorldMove({ x: 0, y: -MOVE_SPEED })) {
+        if (wouldCollideAfterPlayerMove({ x: 0, y: MOVE_SPEED })) {
           console.log("coliding");
           moving = false;
         }
         if (moving) {
-          moveWorld({ x: 0, y: -MOVE_SPEED });
+          movePlayer(player, { x: 0, y: MOVE_SPEED });
         }
       } else if (activeKey === "d" && keys.d) {
         player.moving = true;
         player.image = player.sprites!.right;
-        if (wouldCollideAfterWorldMove({ x: -MOVE_SPEED, y: 0 })) {
+        if (wouldCollideAfterPlayerMove({ x: MOVE_SPEED, y: 0 })) {
           console.log("coliding");
           moving = false;
         }
         if (moving) {
-          moveWorld({ x: -MOVE_SPEED, y: 0 });
+          movePlayer(player, { x: MOVE_SPEED, y: 0 });
         }
       } else {
         followClickPath();
