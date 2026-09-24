@@ -215,8 +215,8 @@ function App() {
       const canvasY = ((clientY - rect.top) / rect.height) * canvas.height;
 
       return {
-        x: (canvasX - canvas.width / 2) / zoom + canvas.width / 2,
-        y: (canvasY - canvas.height / 2) / zoom + canvas.height / 2,
+        x: camera.position.x + (canvasX - canvas.width / 2) / zoom,
+        y: camera.position.y + (canvasY - canvas.height / 2) / zoom,
       };
     };
 
