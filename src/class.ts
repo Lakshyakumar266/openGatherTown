@@ -64,25 +64,32 @@ export class Sprite {
         );
 
         if (this.name) {
-            this.ctx.font = "bold 12px monospace";
+            this.ctx.font = "bold 11px monospace";
             this.ctx.textAlign = "center";
-            this.ctx.textBaseline = "bottom";
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+            this.ctx.textBaseline = "middle";
+
+            const nameX = this.position.x + this.width / 2;
+            const nameY = this.position.y - 10;
+
+            const paddingX = 5;
+            // const paddingY = 2;
+            const textWidth = this.ctx.measureText(this.name).width;
+
+            const boxX = nameX - textWidth / 2 - paddingX;
+            const boxY = nameY - 7;
+            const boxWidth = textWidth + paddingX * 2;
+            const boxHeight = 14;
+
+            // Nameplate
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+            this.ctx.beginPath();
+            this.ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+            this.ctx.fill();
+            // Text
             this.ctx.fillStyle = "#ffffff";
-            const nameX =
-                this.position.x +
-                this.width / 2;
-            const nameY = this.position.y - 4;
-            this.ctx.strokeText(this.name,
-                nameX,
-                nameY,
-            );
-            this.ctx.fillText(
-                this.name,
-                nameX,
-                nameY,
-            );
+            this.ctx.fillText(this.name, nameX, nameY);
+
+            // this.ctx.restore();
         }
 
         if (this.frames.max > 1 && this.moving) {
