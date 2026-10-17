@@ -102,7 +102,16 @@ function App() {
     return null;
   });
 
-  const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<GameSettings>(() => {
+    const audioSet = audioManager.getSettings();
+    return {
+      ...DEFAULT_SETTINGS,
+      bgmVolume: audioSet.bgmVolume,
+      sfxVolume: audioSet.sfxVolume,
+      bgmMuted: audioSet.bgmMuted,
+      sfxMuted: audioSet.sfxMuted,
+    };
+  });
   const [fps, setFps] = useState(0);
 
   const updateSettings = useCallback((partial: Partial<GameSettings>) => {
@@ -151,7 +160,7 @@ function App() {
     if (phase !== "game" || !playerConfig) return;
 
     // Re-init audio if entering game via direct URL (page refresh)
-    audioManager.init(DEFAULT_SETTINGS);
+    audioManager.init();
 
     const canvas = canvasRef.current;
     if (!canvas) return;

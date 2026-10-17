@@ -14,17 +14,44 @@ const DEFAULT_SETTINGS: AudioSettings = {
   sfxMuted: false,
 };
 
+const AUDIO_STORAGE_KEY = "opengather_audio_settings";
+
+function loadSavedAudioSettings(): AudioSettings {
+  try {
+    const raw = localStorage.getItem(AUDIO_STORAGE_KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    const parsed = JSON.parse(raw);
+    return {
+      bgmVolume: typeof parsed.bgmVolume === "number" ? Math.max(0, Math.min(1, parsed.bgmVolume)) : DEFAULT_SETTINGS.bgmVolume,
+      sfxVolume: typeof parsed.sfxVolume === "number" ? Math.max(0, Math.min(1, parsed.sfxVolume)) : DEFAULT_SETTINGS.sfxVolume,
+      bgmMuted: Boolean(parsed.bgmMuted),
+      sfxMuted: Boolean(parsed.sfxMuted),
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+function saveAudioSettings(settings: AudioSettings) {
+  try {
+    localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Audio Manager using authentic 2D game audio assets (Kenney CC0 2D game assets).
  * - SFX: Kenney Interface Sounds (click, open, close, select, confirmation/join)
  * - Footsteps: Kenney 2D grass footsteps with pitch variation & cadence cycling
  * - BGM: Long, peaceful acoustic game music
+ * - Persistence: Automatically saves and restores volume levels across browser reloads
  */
 class AudioManager {
   private bgm: Howl | null = null;
   private sfx: Map<string, Howl> = new Map();
   private footsteps: Howl[] = [];
-  private settings: AudioSettings = { ...DEFAULT_SETTINGS };
+  private settings: AudioSettings = loadSavedAudioSettings();
   private footstepCooldown = 0;
   private footstepIndex = 0;
   private initialized = false;
@@ -33,9 +60,8 @@ class AudioManager {
     if (this.initialized) return;
     this.initialized = true;
 
-    if (settings) {
-      this.settings = { ...this.settings, ...settings };
-    }
+    const saved = loadSavedAudioSettings();
+    this.settings = { ...saved, ...(settings || {}) };
 
     // Long peaceful acoustic BGM
     this.bgm = new Howl({
@@ -200,6 +226,7 @@ class AudioManager {
     if (this.bgm) {
       this.bgm.volume(this.settings.bgmMuted ? 0 : vol);
     }
+    saveAudioSettings(this.settings);
   }
 
   setSFXVolume(vol: number) {
@@ -217,6 +244,7 @@ class AudioManager {
     if (select) select.volume(eff * 0.7);
 
     this.footsteps.forEach((s) => s.volume(eff * 0.45));
+    saveAudioSettings(this.settings);
   }
 
   toggleBGMMute() {
@@ -224,12 +252,14 @@ class AudioManager {
     if (this.bgm) {
       this.bgm.volume(this.settings.bgmMuted ? 0 : this.settings.bgmVolume);
     }
+    saveAudioSettings(this.settings);
     return this.settings.bgmMuted;
   }
 
   toggleSFXMute() {
     this.settings.sfxMuted = !this.settings.sfxMuted;
     this.setSFXVolume(this.settings.sfxVolume);
+    saveAudioSettings(this.settings);
     return this.settings.sfxMuted;
   }
 
