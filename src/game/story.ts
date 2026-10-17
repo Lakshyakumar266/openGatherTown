@@ -468,7 +468,7 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     id: "echo_intro",
     speaker: "Echo",
     title: "Meadow Wanderer",
-    portrait: "/playerDown.png",
+    portrait: "/characters/00-classic/playerDown.png",
     text: "Greetings, fellow traveler! The breeze here is unmatched, isn't it? Take your time exploring every corner of Oakhaven.",
     options: [
       {
@@ -494,7 +494,7 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     id: "echo_controls",
     speaker: "Echo",
     title: "Meadow Wanderer",
-    portrait: "/playerDown.png",
+    portrait: "/characters/00-classic/playerDown.png",
     text: "You can move with WASD keys, or simply double-click any spot on the ground to auto-walk there. Use your mouse scroll or +/- keys to zoom the camera in close for a cozy view!",
     options: [
       {
@@ -506,7 +506,7 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     id: "echo_village",
     speaker: "Echo",
     title: "Meadow Wanderer",
-    portrait: "/playerDown.png",
+    portrait: "/characters/00-classic/playerDown.png",
     text: "Elder Oakhaven watches over the grove. If you haven't spoken to him yet, he's usually standing near the well admiring the flowers.",
     options: [
       {
@@ -518,7 +518,7 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     id: "echo_banter",
     speaker: "Echo",
     title: "Meadow Wanderer",
-    portrait: "/playerDown.png",
+    portrait: "/characters/00-classic/playerDown.png",
     text: "The sun warms the stones, the water whispers in the well... It feels wonderful to be alive in Oakhaven today.",
     options: [
       {

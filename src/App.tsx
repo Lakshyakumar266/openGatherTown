@@ -101,7 +101,20 @@ function loadPlayerPos(): Point | null {
   try {
     const raw = localStorage.getItem(POSITION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed?.x === "number" &&
+      typeof parsed?.y === "number" &&
+      !isNaN(parsed.x) &&
+      !isNaN(parsed.y) &&
+      parsed.x >= 200 &&
+      parsed.x <= 2500 &&
+      parsed.y >= 0 &&
+      parsed.y <= 1500
+    ) {
+      return parsed;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -265,10 +278,10 @@ function App() {
       pDown: `/characters/${folder}/playerDown.png`,
       pLeft: `/characters/${folder}/playerLeft.png`,
       pRight: `/characters/${folder}/playerRight.png`,
-      npcDown: "/playerDown.png",
-      npcUp: "/playerUp.png",
-      npcLeft: "/playerLeft.png",
-      npcRight: "/playerRight.png",
+      npcDown: "/characters/00-classic/playerDown.png",
+      npcUp: "/characters/00-classic/playerUp.png",
+      npcLeft: "/characters/00-classic/playerLeft.png",
+      npcRight: "/characters/00-classic/playerRight.png",
       elderDown: "/characters/03-brom/playerDown.png",
       elderUp: "/characters/03-brom/playerUp.png",
       elderLeft: "/characters/03-brom/playerLeft.png",
