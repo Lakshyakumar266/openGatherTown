@@ -280,10 +280,6 @@ export function GameHUD({ playerName, settings, onUpdateSettings, fps, onExitWor
         {settings.showFps && fps !== undefined && (
           <div className="hud-fps">{fps} FPS</div>
         )}
-        <div className="hud-player-chip">
-          <span className="hud-player-dot" />
-          <span className="hud-player-name">{playerName}</span>
-        </div>
         <button
           id="hud-controls-btn"
           className={`hud-icon-btn ${showControls ? "hud-icon-btn--active" : ""}`}

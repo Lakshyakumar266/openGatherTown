@@ -12,6 +12,13 @@ export type CharacterOption = {
 
 export const CHARACTER_OPTIONS: CharacterOption[] = [
   {
+    id: "classic",
+    name: "Wanderer",
+    folder: "00-classic",
+    description: "The classic emerald-robed explorer of these lands.",
+    color: "#22c55e",
+  },
+  {
     id: "aldric",
     name: "Aldric",
     folder: "01-aldric",
