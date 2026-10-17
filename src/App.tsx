@@ -57,15 +57,16 @@ import { StartScreen } from "./components/StartScreen";
 import { GameHUD } from "./components/GameHUD";
 import { DialogueBox } from "./components/DialogueBox";
 import { QuestTracker } from "./components/QuestTracker";
+import { MiniMap } from "./components/MiniMap";
 
 const WAYPOINT_STOP_DISTANCE = 4;
 const MAP_TILE_SIZE = 64;
 const MAP_COLS = 64;
 const MAP_ROWS_APPROX = 56;
 
-// Fixed world coordinates outside the cottage door for Legacy Map
-const SPAWN_WORLD_X = 635;
-const SPAWN_WORLD_Y = 305;
+// Fixed world coordinates outside the cottage door for Legacy Map on dry land
+const SPAWN_WORLD_X = 730;
+const SPAWN_WORLD_Y = 480;
 
 // ── Session persistence helpers ────────────────────────────────────────────
 const SESSION_KEY = "og_player_config";
@@ -119,18 +120,24 @@ function loadPlayerPos(mapType: MapType = "new"): Point | null {
     const raw = localStorage.getItem(`${POSITION_KEY}_${mapType}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    const maxBound = mapType === "new" ? 4096 : 2600;
     if (
       typeof parsed?.x === "number" &&
       typeof parsed?.y === "number" &&
       !isNaN(parsed.x) &&
-      !isNaN(parsed.y) &&
-      parsed.x >= 0 &&
-      parsed.x <= maxBound &&
-      parsed.y >= 0 &&
-      parsed.y <= maxBound
+      !isNaN(parsed.y)
     ) {
-      return parsed;
+      // Legacy map dry land bounds check: y >= 260 prevents water spawn
+      if (mapType === "legacy") {
+        if (parsed.x >= 200 && parsed.x <= 1800 && parsed.y >= 260 && parsed.y <= 1400) {
+          return parsed;
+        }
+        return null; // Fallback to safe SPAWN_WORLD_X, SPAWN_WORLD_Y
+      }
+
+      // New map bounds check
+      if (parsed.x >= 256 && parsed.x <= 3840 && parsed.y >= 256 && parsed.y <= 3840) {
+        return parsed;
+      }
     }
     return null;
   } catch {
@@ -203,6 +210,12 @@ function App() {
   const [storyState, setStoryState] = useState<StoryState>(() => loadSavedStory());
   const [activePOI, setActivePOI] = useState<InteractablePOI | null>(null);
   const [activeDialogue, setActiveDialogue] = useState<DialogueNode | null>(null);
+
+  // MiniMap radar states
+  const [playerHudPos, setPlayerHudPos] = useState<Point>({ x: 730, y: 480 });
+  const [playerHudFacing, setPlayerHudFacing] = useState<"up" | "down" | "left" | "right">("down");
+  const [activeProceduralMap, setActiveProceduralMap] = useState<ProceduralMap | null>(null);
+  const [currentActivePOIs, setCurrentActivePOIs] = useState<InteractablePOI[]>(POIS);
 
   const updateSettings = useCallback((partial: Partial<GameSettings>) => {
     setSettings((s) => ({ ...s, ...partial }));
@@ -345,6 +358,14 @@ function App() {
       elderUp: "/characters/03-brom/playerUp.png",
       elderLeft: "/characters/03-brom/playerLeft.png",
       elderRight: "/characters/03-brom/playerRight.png",
+      silasDown: "/characters/05-rowan/playerDown.png",
+      silasUp: "/characters/05-rowan/playerUp.png",
+      silasLeft: "/characters/05-rowan/playerLeft.png",
+      silasRight: "/characters/05-rowan/playerRight.png",
+      joshuaDown: "/characters/01-aldric/playerDown.png",
+      joshuaUp: "/characters/01-aldric/playerUp.png",
+      joshuaLeft: "/characters/01-aldric/playerLeft.png",
+      joshuaRight: "/characters/01-aldric/playerRight.png",
       rabbitIdle: "/animals/rabbit_idle.png",
       rabbitHop: "/animals/rabbit_hop.png",
       deerIdle: "/animals/deer_idle.png",
@@ -367,6 +388,8 @@ function App() {
       .then((entries) => {
         if (cancelled) return;
         setIsAssetsLoading(false);
+        setActiveProceduralMap(proceduralMap);
+        setCurrentActivePOIs(activePOIs);
 
         const imgs = Object.fromEntries(entries) as Record<string, HTMLImageElement>;
 
@@ -447,7 +470,44 @@ function App() {
           },
         });
 
-        const allPlayers = [player, npc, elder];
+        const silas = new Sprite({
+          ctx,
+          image: imgs.silasDown,
+          name: "Silas the Hermit",
+          position: {
+            x: activePOIs[2]?.position.x ?? 41 * 64 + 32,
+            y: activePOIs[2]?.position.y ?? 35 * 64 + 32,
+          },
+          frames: { max: 4 },
+          sprites: {
+            up: imgs.silasUp,
+            down: imgs.silasDown,
+            right: imgs.silasRight,
+            left: imgs.silasLeft,
+          },
+        });
+
+        const joshua = new Sprite({
+          ctx,
+          image: imgs.joshuaDown,
+          name: "Captain Joshua",
+          position: {
+            x: activePOIs[3]?.position.x ?? 50 * 64 + 32,
+            y: activePOIs[3]?.position.y ?? 28 * 64 + 32,
+          },
+          frames: { max: 4 },
+          sprites: {
+            up: imgs.joshuaUp,
+            down: imgs.joshuaDown,
+            right: imgs.joshuaRight,
+            left: imgs.joshuaLeft,
+          },
+        });
+
+        const allPlayers = [player, npc, elder, silas, joshua];
+        const npcs = [npc, elder, silas, joshua];
+        const npcBaseY = new Map<Sprite, number>();
+        npcs.forEach((s) => npcBaseY.set(s, s.position.y));
 
         // ── Animated Animals System ──
         const animals = createMeadowAnimals(activeMapType);
@@ -664,6 +724,7 @@ function App() {
         let lastTime = performance.now();
         let frameCount = 0;
         let lastPosSave = 0;
+        let lastMiniMapUpdate = 0;
         let lastNearestId = "";
 
         // ── Game loop ──
@@ -683,6 +744,20 @@ function App() {
           if (now - lastPosSave > 5000) {
             savePlayerPos(player.position.x, player.position.y, activeMapType);
             lastPosSave = now;
+          }
+
+          // Synchronize MiniMap radar (throttled to 100ms)
+          if (now - lastMiniMapUpdate > 100) {
+            lastMiniMapUpdate = now;
+            setPlayerHudPos({ x: player.position.x, y: player.position.y });
+            let facing: "up" | "down" | "left" | "right" = "down";
+            if (player.sprites) {
+              if (player.image === player.sprites.up) facing = "up";
+              else if (player.image === player.sprites.left) facing = "left";
+              else if (player.image === player.sprites.right) facing = "right";
+              else if (player.image === player.sprites.down) facing = "down";
+            }
+            setPlayerHudFacing(facing);
           }
 
           // Smooth Camera tracking per camera-systems skill
@@ -747,7 +822,26 @@ function App() {
           updateAnimals(animals, player.position.x, player.position.y);
           drawAnimals(ctx, animals, animalSprites);
 
-          // 6. Y-Sorted Characters
+          // 6. Animate NPCs: breathing bobbing & turning to face player within 85px
+          npcs.forEach((s, idx) => {
+            const baseY = npcBaseY.get(s) ?? s.position.y;
+            s.position.y = baseY + Math.sin(now * 0.003 + idx * 1.5) * 1.5;
+
+            const dx = player.position.x - s.position.x;
+            const dy = player.position.y - s.position.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 85 && s.sprites) {
+              if (Math.abs(dx) >= Math.abs(dy)) {
+                s.image = dx > 0 ? s.sprites.right : s.sprites.left;
+              } else {
+                s.image = dy > 0 ? s.sprites.down : s.sprites.up;
+              }
+            } else if (s.sprites && dist > 115) {
+              s.image = s.sprites.down;
+            }
+          });
+
+          // 7. Y-Sorted Characters
           const sortedPlayers = [...allPlayers].sort((a, b) => a.position.y - b.position.y);
           sortedPlayers.forEach((s) => {
             const originalName = s.name;
@@ -756,7 +850,7 @@ function App() {
             s.name = originalName;
           });
 
-          // 7. Foreground Layer
+          // 8. Foreground Layer
           if (activeMapType === "new" && proceduralMap) {
             proceduralMap.drawForeground(
               ctx,
@@ -772,7 +866,7 @@ function App() {
 
           drawSprinkles(ctx, sprinkles);
 
-          // 8. Proximity detection for POIs
+          // 9. Proximity detection for POIs
           const pCenter = playerCenter();
           let nearestPOI: InteractablePOI | null = null;
           let nearestDist = Infinity;
@@ -794,16 +888,25 @@ function App() {
             setActivePOI(nearestPOI);
           }
 
-          // 9. Floating interactable glyph above nearest POI if not in dialogue
+          // 10. Floating interactable speech bubble above nearest POI if not in dialogue
           if (nearestPOI && !activeDialogueRef.current) {
             ctx.save();
-            const glyphY = nearestPOI.position.y - (nearestPOI.type === "npc" ? 52 : 36);
-            ctx.font = "bold 13px 'JetBrains Mono', monospace";
-            ctx.fillStyle = "#fef3c7";
-            ctx.shadowColor = "rgba(0,0,0,0.8)";
-            ctx.shadowBlur = 6;
+            const glyphY = nearestPOI.position.y - (nearestPOI.type === "npc" ? 54 : 36) + Math.sin(now * 0.005) * 2.5;
+            const label = nearestPOI.type === "npc" ? `💬 Press [E] to talk` : `✨ Press [E] to inspect`;
+            ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+            const textW = ctx.measureText(label).width;
+
+            ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+            ctx.strokeStyle = "rgba(245, 158, 11, 0.7)";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(nearestPOI.position.x - textW / 2 - 8, glyphY - 14, textW + 16, 20, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#fef08a";
             ctx.textAlign = "center";
-            ctx.fillText("[E]", nearestPOI.position.x, glyphY);
+            ctx.fillText(label, nearestPOI.position.x, glyphY);
             ctx.restore();
           }
 
@@ -1011,6 +1114,20 @@ function App() {
                 storyState={storyState}
                 activePOI={activePOI}
                 onInteract={handleStartInteract}
+              />
+
+              <MiniMap
+                playerPos={playerHudPos}
+                playerFacing={playerHudFacing}
+                pois={currentActivePOIs}
+                worldWidth={settings.selectedMap === "new" ? (activeProceduralMap?.width ?? 4096) : 4096}
+                worldHeight={settings.selectedMap === "new" ? (activeProceduralMap?.height ?? 4096) : 2304}
+                mapType={settings.selectedMap || "new"}
+                proceduralMap={activeProceduralMap}
+                onTeleport={(x, y) => {
+                  if (teleportRef.current) teleportRef.current({ x, y });
+                }}
+                activeQuestTitle={storyState.quests.find((q) => q.active && !q.completed)?.title}
               />
 
               {activeDialogue && (
