@@ -1,6 +1,12 @@
 [SKILL.md](file;file:///d%3A/CodingProGamer/developer/topDown_Map/.agents/skills/audio-design/SKILL.md) [SKILL.md](file;file:///d%3A/CodingProGamer/developer/topDown_Map/.agents/skills/create-game-assets/SKILL.md) [SKILL.md](file;file:///d%3A/CodingProGamer/developer/topDown_Map/.agents/skills/dialogue-systems/SKILL.md) [SKILL.md](file;file:///d%3A/CodingProGamer/developer/topDown_Map/.agents/skills/shader-programming/SKILL.md) [SKILL.md](file;file:///d%3A/CodingProGamer/developer/topDown_Map/.agents/skills/visual-novel/SKILL.md) 
 [SKILL.md](file;file:///d%3A/CodingProGamer/developer/topDown_Map/.agents/skills/procedural-gen/SKILL.md) 
 
+[SKILL.md](file;file:///d%3A/CodingProGamer/developer/topDown_Map/.agents/skills/level-design/SKILL.md) 
+[SKILL.md](file;file:///d%3A/CodingProGamer/developer/topDown_Map/.agents/skills/camera-systems/SKILL.md) 
+
+
+
+
 read these skills and implement the features and remake the game assets from this knowledgebase. dont use default icons remake the game assets with this knowledge or download assets acc to theme and vibe. and make it engaging. add animations, and dont use cheape techinques to make it vibrant use read code and enviournment setup and real assets. 
 you have full access to my PC and internet. you are on free hand do whataver you want. 
 
@@ -15,3 +21,6 @@ AND MAKE SURE IN GETTING TEH ASSETS OR CREATING THEM MAKE SURE THE GAME THEME BE
 
 
 first write this prompt in a tasks file and steps in steps fils and then do by reffring to them so the memory stayes in the codebase. 
+
+
+also give map selection legacy / new. so this legassy code map will also stay just add enhancmants also on the legacyy map also. 

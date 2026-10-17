@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import "./App.css";
 import { collision } from "./collision";
 import { Boundary, Sprite } from "./class";
 import {
@@ -37,6 +38,21 @@ import {
   type DialogueNode,
   type DialogueOption,
 } from "./game/story";
+import {
+  createMeadowAnimals,
+  updateAnimals,
+  drawAnimals,
+  type AnimalSprites,
+} from "./game/animals";
+import {
+  createEnvironmentSystem,
+  updateEnvironment,
+  drawEnvironment,
+} from "./game/environment";
+import {
+  generateWhisperingRuinsMap,
+  type ProceduralMap,
+} from "./game/mapGenerator";
 import { StartScreen } from "./components/StartScreen";
 import { GameHUD } from "./components/GameHUD";
 import { DialogueBox } from "./components/DialogueBox";
@@ -47,7 +63,7 @@ const MAP_TILE_SIZE = 64;
 const MAP_COLS = 64;
 const MAP_ROWS_APPROX = 56;
 
-// Fixed world coordinates outside the cottage door
+// Fixed world coordinates outside the cottage door for Legacy Map
 const SPAWN_WORLD_X = 635;
 const SPAWN_WORLD_Y = 305;
 
@@ -108,10 +124,10 @@ function loadPlayerPos(): Point | null {
       typeof parsed?.y === "number" &&
       !isNaN(parsed.x) &&
       !isNaN(parsed.y) &&
-      parsed.x >= 200 &&
-      parsed.x <= 2500 &&
+      parsed.x >= 100 &&
+      parsed.x <= 2600 &&
       parsed.y >= 0 &&
-      parsed.y <= 1500
+      parsed.y <= 2600
     ) {
       return parsed;
     }
@@ -133,12 +149,20 @@ function setHashPhase(phase: GamePhase) {
   }
 }
 
-// ── Image loading helper ───────────────────────────────────────────────────
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
+// ── Resilient Image loading helper ─────────────────────────────────────────
+function safeLoadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load: ${src}`));
+    img.onerror = () => {
+      console.warn(`[SafeImage] Failed to load ${src}, generating placeholder`);
+      const c = document.createElement("canvas");
+      c.width = 64;
+      c.height = 64;
+      const fallback = new Image();
+      fallback.src = c.toDataURL();
+      fallback.onload = () => resolve(fallback);
+    };
     img.src = src;
   });
 }
@@ -172,6 +196,7 @@ function App() {
     };
   });
   const [fps, setFps] = useState(0);
+  const [isAssetsLoading, setIsAssetsLoading] = useState(false);
 
   // Story state, active POI, and active dialogue
   const [storyState, setStoryState] = useState<StoryState>(() => loadSavedStory());
@@ -190,6 +215,8 @@ function App() {
 
   const activeDialogueRef = useRef(activeDialogue);
   activeDialogueRef.current = activeDialogue;
+
+  const nearestPOIRef = useRef<InteractablePOI | null>(null);
 
   // Listen to back/forward hash changes
   useEffect(() => {
@@ -229,9 +256,24 @@ function App() {
   const teleportRef = useRef<((target: Point) => void) | null>(null);
   const getPlayerPosRef = useRef<(() => Point) | null>(null);
 
+  // Dialogue Interaction Triggers
+  const handleStartInteract = useCallback((poi: InteractablePOI) => {
+    audioManager.playOpen();
+    const nodeId = poi.initialNodeId(storyStateRef.current);
+    const node = DIALOGUE_NODES[nodeId];
+    if (node) {
+      setActiveDialogue(node);
+    }
+  }, []);
+
   // ── Game loop ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (phase !== "game" || !playerConfig) return;
+    if (phase !== "game" || !playerConfig) {
+      setIsAssetsLoading(false);
+      return;
+    }
+
+    setIsAssetsLoading(true);
 
     // Re-init audio if entering game via direct URL (page refresh)
     audioManager.init();
@@ -250,14 +292,17 @@ function App() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
+    handleResize();
     window.addEventListener("resize", handleResize);
 
-    // ── Boundaries ──
-    const boundaries: Boundary[] = [];
+    const activeMapType: MapType = settings.selectedMap || "legacy";
+
+    // ── Build Legacy Boundaries ──
+    const legacyBoundaries: Boundary[] = [];
     collisionsMap.forEach((row, i) => {
       row.forEach((item, j) => {
         if (item !== 0) {
-          boundaries.push(
+          legacyBoundaries.push(
             new Boundary({
               ctx,
               position: {
@@ -270,11 +315,23 @@ function App() {
       });
     });
 
+    // ── Build Procedural Ruins Map if active ──
+    let proceduralMap: ProceduralMap | null = null;
+    let activeBoundaries: Boundary[] = legacyBoundaries;
+    let activePOIs: InteractablePOI[] = POIS;
+
+    if (activeMapType === "new") {
+      proceduralMap = generateWhisperingRuinsMap(ctx, 42);
+      activeBoundaries = proceduralMap.boundaries;
+      activePOIs = proceduralMap.pois;
+    } else {
+      activeBoundaries = legacyBoundaries;
+      activePOIs = POIS;
+    }
+
     // ── Load ALL images before starting game loop ──
     const folder = playerConfig.character.folder;
-    const imageSources = {
-      bg: "/BackgroundTerrain.png",
-      fg: "/forground.png",
+    const imageSources: Record<string, string> = {
       pUp: `/characters/${folder}/playerUp.png`,
       pDown: `/characters/${folder}/playerDown.png`,
       pLeft: `/characters/${folder}/playerLeft.png`,
@@ -287,33 +344,56 @@ function App() {
       elderUp: "/characters/03-brom/playerUp.png",
       elderLeft: "/characters/03-brom/playerLeft.png",
       elderRight: "/characters/03-brom/playerRight.png",
+      rabbitIdle: "/animals/rabbit_idle.png",
+      rabbitHop: "/animals/rabbit_hop.png",
+      deerIdle: "/animals/deer_idle.png",
+      deerWalk: "/animals/deer_walk.png",
+      foxIdle: "/animals/fox_idle.png",
+      foxWalk: "/animals/fox_walk.png",
+      tileset: "/tiles/RPGpack_sheet_2X.png",
     };
+
+    if (activeMapType === "legacy") {
+      imageSources.bg = "/BackgroundTerrain.png";
+      imageSources.fg = "/forground.png";
+    }
 
     Promise.all(
       Object.entries(imageSources).map(([key, src]) =>
-        loadImage(src).then((img) => [key, img] as [string, HTMLImageElement]),
+        safeLoadImage(src).then((img) => [key, img] as [string, HTMLImageElement]),
       ),
     )
       .then((entries) => {
         if (cancelled) return;
+        setIsAssetsLoading(false);
+
         const imgs = Object.fromEntries(entries) as Record<string, HTMLImageElement>;
 
         // ── Sprites ──
-        const background = new Sprite({
-          ctx,
-          image: imgs.bg,
-          position: { x: offset.x, y: offset.y },
-        });
+        let background: Sprite | null = null;
+        let forground: Sprite | null = null;
 
-        const forground = new Sprite({
-          ctx,
-          image: imgs.fg,
-          position: { x: offset.x, y: offset.y },
-        });
+        if (activeMapType === "legacy" && imgs.bg && imgs.fg) {
+          background = new Sprite({
+            ctx,
+            image: imgs.bg,
+            position: { x: offset.x, y: offset.y },
+          });
+
+          forground = new Sprite({
+            ctx,
+            image: imgs.fg,
+            position: { x: offset.x, y: offset.y },
+          });
+        }
 
         const savedPos = loadPlayerPos();
-        const initialX = savedPos?.x ?? SPAWN_WORLD_X;
-        const initialY = savedPos?.y ?? SPAWN_WORLD_Y;
+        const initialX =
+          savedPos?.x ??
+          (activeMapType === "new" ? proceduralMap!.spawnPoint.x : SPAWN_WORLD_X);
+        const initialY =
+          savedPos?.y ??
+          (activeMapType === "new" ? proceduralMap!.spawnPoint.y : SPAWN_WORLD_Y);
 
         const player = new Sprite({
           ctx,
@@ -337,8 +417,8 @@ function App() {
           image: imgs.npcDown,
           name: "Echo",
           position: {
-            x: POIS[1].position.x,
-            y: POIS[1].position.y,
+            x: activePOIs[1].position.x,
+            y: activePOIs[1].position.y,
           },
           frames: { max: 4 },
           sprites: {
@@ -354,8 +434,8 @@ function App() {
           image: imgs.elderDown,
           name: "Elder Oakhaven",
           position: {
-            x: POIS[0].position.x,
-            y: POIS[0].position.y,
+            x: activePOIs[0].position.x,
+            y: activePOIs[0].position.y,
           },
           frames: { max: 4 },
           sprites: {
@@ -367,6 +447,20 @@ function App() {
         });
 
         const allPlayers = [player, npc, elder];
+
+        // ── Animated Animals System ──
+        const animals = createMeadowAnimals(activeMapType);
+        const animalSprites: AnimalSprites = {
+          rabbitIdle: imgs.rabbitIdle,
+          rabbitHop: imgs.rabbitHop,
+          deerIdle: imgs.deerIdle,
+          deerWalk: imgs.deerWalk,
+          foxIdle: imgs.foxIdle,
+          foxWalk: imgs.foxWalk,
+        };
+
+        // ── Environmental Swaying Trees & Falling Leaves System ──
+        const envSystem = createEnvironmentSystem(activeMapType);
 
         // Teleport helper
         teleportRef.current = (target: Point) => {
@@ -381,9 +475,14 @@ function App() {
         });
 
         // ── Ambient system ──
-        const mapW = MAP_COLS * MAP_TILE_SIZE;
-        const mapH = MAP_ROWS_APPROX * MAP_TILE_SIZE;
-        const ambientSys = createAmbientSystem(offset.x, offset.y, mapW, mapH);
+        const mapW = activeMapType === "new" ? proceduralMap!.width : MAP_COLS * MAP_TILE_SIZE;
+        const mapH = activeMapType === "new" ? proceduralMap!.height : MAP_ROWS_APPROX * MAP_TILE_SIZE;
+        const ambientSys = createAmbientSystem(
+          activeMapType === "new" ? 0 : offset.x,
+          activeMapType === "new" ? 0 : offset.y,
+          mapW,
+          mapH,
+        );
 
         // ── Input ──
         const keys = { w: false, a: false, s: false, d: false };
@@ -400,6 +499,14 @@ function App() {
           if (activeDialogueRef.current) return; // Freeze movement during dialogue
 
           const key = e.key.toLowerCase();
+
+          // Press E to interact with closest POI
+          if (key === "e" && nearestPOIRef.current) {
+            e.preventDefault();
+            handleStartInteract(nearestPOIRef.current);
+            return;
+          }
+
           if (key === "+" || key === "=") {
             e.preventDefault();
             currentZoom = Math.min(1.5, currentZoom + 0.05);
@@ -466,7 +573,7 @@ function App() {
         });
 
         const playerSize = () => ({ width: player.width, height: player.height });
-        const mapOrigin = () => background.position;
+        const mapOrigin = () => (activeMapType === "new" ? { x: 0, y: 0 } : offset);
 
         const wouldCollide = (delta: Point) => {
           const next = {
@@ -474,7 +581,7 @@ function App() {
             y: player.position.y + delta.y,
           };
           const hitbox = getPlayerHitbox(next);
-          for (const b of boundaries) {
+          for (const b of activeBoundaries) {
             if (checkCollision(hitbox, { position: b.position, width: b.width, height: b.height }))
               return true;
           }
@@ -543,10 +650,11 @@ function App() {
           return true;
         };
 
-        // FPS
+        // FPS & timing
         let lastTime = performance.now();
         let frameCount = 0;
         let lastPosSave = 0;
+        let lastNearestId = "";
 
         // ── Game loop ──
         function gameLoop(): void {
@@ -567,12 +675,14 @@ function App() {
             lastPosSave = now;
           }
 
-          // Smooth Camera tracking
-          camera.position.x = player.position.x + player.width / 2;
-          camera.position.y = player.position.y + player.height / 2;
+          // Smooth Camera tracking per camera-systems skill
+          const targetCamX = player.position.x + player.width / 2;
+          const targetCamY = player.position.y + player.height / 2;
+          camera.position.x += (targetCamX - camera.position.x) * 0.15;
+          camera.position.y += (targetCamY - camera.position.y) * 0.15;
 
           // Clear Canvas
-          ctx.fillStyle = "rgb(44 87 145)";
+          ctx.fillStyle = activeMapType === "new" ? "#1e293b" : "rgb(44 87 145)";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
           // Render World
@@ -581,31 +691,52 @@ function App() {
           ctx.scale(currentZoom, currentZoom);
           ctx.translate(-camera.position.x, -camera.position.y);
 
-          background.draw();
-          boundaries.forEach((b) => b.draw());
+          // 1. Draw Ground & Base Layer
+          if (activeMapType === "new" && proceduralMap) {
+            proceduralMap.draw(
+              ctx,
+              imgs.tileset,
+              camera.position,
+              canvas.width,
+              canvas.height,
+              currentZoom,
+              now * 0.001,
+            );
+          } else if (background) {
+            background.draw();
+            activeBoundaries.forEach((b) => b.draw());
+          }
 
-          // Ambient Particles (if enabled)
+          // 2. Ambient Particles (if enabled)
           if (settingsRef.current.particlesEnabled) {
             updateAmbient(ambientSys);
             drawAmbient(ctx, ambientSys);
           }
 
-          // Render POI ground markers / halos
-          POIS.forEach((poi) => {
+          // 3. Render POI ground markers / halos
+          activePOIs.forEach((poi) => {
             if (poi.type === "object") {
               ctx.save();
               ctx.beginPath();
               ctx.arc(poi.position.x, poi.position.y, 22, 0, Math.PI * 2);
-              ctx.fillStyle = "rgba(245, 158, 11, 0.12)";
+              ctx.fillStyle = "rgba(245, 158, 11, 0.15)";
               ctx.fill();
               ctx.lineWidth = 1.5;
-              ctx.strokeStyle = "rgba(245, 158, 11, 0.35)";
+              ctx.strokeStyle = "rgba(245, 158, 11, 0.4)";
               ctx.stroke();
               ctx.restore();
             }
           });
 
-          // Y-Sorted Characters
+          // 4. Environmental Wind / Tree Shadows & Blossom/Leaf Drift
+          updateEnvironment(envSystem);
+          drawEnvironment(ctx, envSystem);
+
+          // 5. Autonomous Meadow Animals
+          updateAnimals(animals, player.position.x, player.position.y);
+          drawAnimals(ctx, animals, animalSprites);
+
+          // 6. Y-Sorted Characters
           const sortedPlayers = [...allPlayers].sort((a, b) => a.position.y - b.position.y);
           sortedPlayers.forEach((s) => {
             const originalName = s.name;
@@ -614,15 +745,28 @@ function App() {
             s.name = originalName;
           });
 
-          forground.draw();
+          // 7. Foreground Layer
+          if (activeMapType === "new" && proceduralMap) {
+            proceduralMap.drawForeground(
+              ctx,
+              camera.position,
+              canvas.width,
+              canvas.height,
+              currentZoom,
+              now * 0.001,
+            );
+          } else if (forground) {
+            forground.draw();
+          }
+
           drawSprinkles(ctx, sprinkles);
 
-          // Proximity detection for POIs
+          // 8. Proximity detection for POIs
           const pCenter = playerCenter();
           let nearestPOI: InteractablePOI | null = null;
           let nearestDist = Infinity;
 
-          for (const poi of POIS) {
+          for (const poi of activePOIs) {
             const dx = pCenter.x - poi.position.x;
             const dy = pCenter.y - poi.position.y;
             const dist = Math.hypot(dx, dy);
@@ -632,9 +776,14 @@ function App() {
             }
           }
 
-          setActivePOI(nearestPOI);
+          nearestPOIRef.current = nearestPOI;
+          const currentNearestId = nearestPOI ? nearestPOI.id : "";
+          if (currentNearestId !== lastNearestId) {
+            lastNearestId = currentNearestId;
+            setActivePOI(nearestPOI);
+          }
 
-          // Draw floating interactable glyph above nearest POI if not in dialogue
+          // 9. Floating interactable glyph above nearest POI if not in dialogue
           if (nearestPOI && !activeDialogueRef.current) {
             ctx.save();
             const glyphY = nearestPOI.position.y - (nearestPOI.type === "npc" ? 52 : 36);
@@ -649,7 +798,7 @@ function App() {
 
           ctx.restore();
 
-          // Movement Update
+          // 10. Movement Update
           let moved = false;
           player.moving = false;
 
@@ -713,6 +862,7 @@ function App() {
       })
       .catch((err) => {
         console.error("Failed to load game assets:", err);
+        setIsAssetsLoading(false);
       });
 
     return () => {
@@ -723,20 +873,7 @@ function App() {
       if (c?._cleanup) c._cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, playerConfig, collisionsMap]);
-
-  // Dialogue Interaction Triggers
-  const handleStartInteract = useCallback(
-    (poi: InteractablePOI) => {
-      audioManager.playOpen();
-      const nodeId = poi.initialNodeId(storyStateRef.current);
-      const node = DIALOGUE_NODES[nodeId];
-      if (node) {
-        setActiveDialogue(node);
-      }
-    },
-    [],
-  );
+  }, [phase, playerConfig, collisionsMap, settings.selectedMap]);
 
   const handleSelectDialogueOption = useCallback((option: DialogueOption) => {
     const state = { ...storyStateRef.current };
@@ -765,9 +902,13 @@ function App() {
 
   const handleTeleportToWell = useCallback(() => {
     if (teleportRef.current) {
-      teleportRef.current({ x: 800, y: 220 });
+      if (settings.selectedMap === "new") {
+        teleportRef.current({ x: 22 * 64 + 32, y: 12 * 64 + 32 });
+      } else {
+        teleportRef.current({ x: 810, y: 220 });
+      }
     }
-  }, []);
+  }, [settings.selectedMap]);
 
   const handleSaveGame = useCallback(() => {
     if (playerConfig) saveSession(playerConfig);
@@ -821,8 +962,25 @@ function App() {
             ref={canvasRef}
             width={window.innerWidth}
             height={window.innerHeight}
-            style={{ display: "block", background: "rgb(44 87 145)" }}
+            style={{
+              display: "block",
+              background: settings.selectedMap === "new" ? "#1e293b" : "rgb(44 87 145)",
+            }}
           />
+
+          {isAssetsLoading && (
+            <div className="world-loading-overlay">
+              <div className="world-loading-card">
+                <div className="world-loading-spinner" />
+                <div className="world-loading-title">🌿 Awakening Whispering Meadows...</div>
+                <div className="world-loading-sub">
+                  {settings.selectedMap === "new"
+                    ? "Weaving the ancient stones of the Sunken Citadel..."
+                    : "Summoning Oakhaven Glade and the ancient trees..."}
+                </div>
+              </div>
+            </div>
+          )}
 
           {playerConfig && (
             <>
