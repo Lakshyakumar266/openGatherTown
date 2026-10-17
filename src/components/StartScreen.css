@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    2D TOP-DOWN GAME START MENU & TITLE SCREEN
-   Concept A: "Meadow Shrine Slate" (Tight 6px corners, dark moss alpha, gold trim)
+   Exact Match to Concept A: "Meadow Shrine Slate" Reference
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─── Root Container ─────────────────────────────────────────────────────── */
@@ -23,7 +23,7 @@
   opacity: 0;
   pointer-events: none;
   transform: scale(1.02);
-  transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: all 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ─── Living Background Canvas ───────────────────────────────────────────── */
@@ -37,51 +37,67 @@
   display: block;
 }
 
-/* ─── Top Bar Controls ───────────────────────────────────────────────────── */
+/* ─── Top Right Music Switch (Exact Concept A) ───────────────────────────── */
 .ss-top-bar {
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: 18px;
+  right: 20px;
   display: flex;
   gap: 8px;
   z-index: 20;
 }
 
-.ss-audio-pill {
+.ss-music-switch {
   display: flex;
   align-items: center;
-  gap: 7px;
-  background: rgba(13, 27, 20, 0.88);
-  border: 1px solid rgba(245, 158, 11, 0.45);
+  gap: 9px;
+  background: rgba(13, 27, 20, 0.92);
+  border: 1.5px solid rgba(245, 158, 11, 0.45);
   border-radius: 4px;
-  padding: 6px 12px;
+  padding: 5px 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(254, 243, 199, 0.15);
+  backdrop-filter: blur(12px);
+  transition: all 0.18s ease;
+  font-family: inherit;
+}
+
+.ss-music-switch:hover {
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+.ss-music-label {
   font-size: 0.78rem;
   font-weight: 700;
-  color: #fef08a;
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  font-family: inherit;
-  letter-spacing: 0.3px;
+  color: #fef3c7;
+  letter-spacing: 0.2px;
 }
 
-.ss-audio-pill:hover {
-  background: rgba(22, 45, 33, 0.95);
-  border-color: #f59e0b;
+.ss-music-pill {
+  width: 36px;
+  height: 18px;
+  background: rgba(220, 38, 38, 0.7);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  padding: 1px 2px;
+  transition: background 0.2s;
+}
+
+.ss-music-switch--on .ss-music-pill {
+  background: #10b981;
+}
+
+.ss-music-pill-knob {
+  font-size: 0.62rem;
+  font-weight: 900;
   color: #ffffff;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), 0 0 10px rgba(245, 158, 11, 0.3);
-}
-
-.ss-audio-pill--muted {
-  color: #9ca3af;
-  border-color: rgba(156, 163, 175, 0.35);
-  opacity: 0.85;
-}
-
-.ss-audio-icon {
-  font-size: 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  width: 100%;
+  text-align: center;
+  letter-spacing: 0.5px;
 }
 
 /* ─── Main Content Container ─────────────────────────────────────────────── */
@@ -92,358 +108,327 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 470px;
-  padding: 24px 16px;
+  max-width: 430px;
+  padding: 16px;
   margin: auto;
-}
-
-/* ─── 2D Game Title Header ───────────────────────────────────────────────── */
-.ss-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 18px;
-  text-align: center;
-  animation: ss-float 4.5s ease-in-out infinite;
-}
-
-@keyframes ss-float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-.ss-emblem {
-  margin-bottom: 8px;
-  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6));
-}
-
-.ss-game-title {
-  font-size: 2.3rem;
-  font-weight: 900;
-  letter-spacing: 3.5px;
-  color: #fef3c7;
-  margin: 0;
-  text-shadow: 0 2px 0 #0d2818, 0 4px 14px rgba(0, 0, 0, 0.9), 0 0 20px rgba(245, 158, 11, 0.35);
-  font-family: inherit;
-  text-transform: uppercase;
-}
-
-.ss-game-tagline {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #a7f3d0;
-  margin: 4px 0 0;
-  letter-spacing: 1px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 /* ─── Card Stage: Concept A Meadow Shrine Slate ──────────────────────────── */
 .ss-card-stage {
   width: 100%;
-  background: rgba(13, 27, 20, 0.88);
-  border: 1.5px solid rgba(245, 158, 11, 0.45);
+  background: rgba(13, 27, 20, 0.94);
+  border: 1.5px solid rgba(245, 158, 11, 0.5);
   border-radius: 6px;
-  padding: 22px 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7),
-    0 2px 6px rgba(0, 0, 0, 0.3),
-    inset 0 0 0 1px rgba(110, 231, 183, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  padding: 22px 24px 20px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(10, 20, 15, 0.95),
+    inset 0 0 24px rgba(82, 183, 136, 0.08),
+    inset 0 1px 0 rgba(254, 243, 199, 0.2);
   backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: ss-card-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: ss-card-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes ss-card-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* ─── Hero Spotlight Stage ───────────────────────────────────────────────── */
-.ss-hero-spotlight {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 16px;
-}
-
-.ss-pedestal {
-  position: relative;
-  width: 110px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ss-pedestal-ring {
-  position: absolute;
-  bottom: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 76px;
-  height: 18px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(245, 158, 11, 0.45) 15%,
-    rgba(82, 183, 136, 0.25) 55%,
-    transparent 80%
-  );
-  border-radius: 50%;
-  animation: ss-shadow-pulse 3.5s ease-in-out infinite;
-}
-
-@keyframes ss-shadow-pulse {
-  0%, 100% {
-    transform: translateX(-50%) scale(1);
-    opacity: 0.85;
-  }
-  50% {
-    transform: translateX(-50%) scale(0.85);
-    opacity: 0.5;
-  }
-}
-
-/* Crisp Single Standing Sprite Frame */
-.ss-hero-sprite-box {
-  width: 48px;
-  height: 68px;
-  overflow: hidden;
-  position: relative;
-  transform: scale(1.7);
-  transform-origin: center center;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6));
-  animation: ss-hero-bob 3.5s ease-in-out infinite;
-}
-
-@keyframes ss-hero-bob {
-  0%, 100% {
-    transform: scale(1.7) translateY(0);
-  }
-  50% {
-    transform: scale(1.7) translateY(-4px);
-  }
-}
-
-.ss-hero-sprite-img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 192px;
-  height: 68px;
-  max-width: none;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-}
-
-.ss-hero-info {
+/* ─── Header: Inside the Card with Leaf Vine Flourishes ──────────────────── */
+.ss-concept-header {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin-top: 6px;
-}
-
-.ss-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 3px 12px;
-  background: rgba(22, 45, 33, 0.85);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  border-radius: 4px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.ss-badge-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.ss-badge-title {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #fef3c7;
-  letter-spacing: 0.5px;
-}
-
-.ss-hero-desc {
-  font-size: 0.78rem;
-  color: #a7f3d0;
-  margin: 5px 0 0;
-  max-width: 300px;
-  line-height: 1.35;
-}
-
-/* ─── Name Input Row ─────────────────────────────────────────────────────── */
-.ss-name-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   width: 100%;
-  max-width: 320px;
-  margin-bottom: 16px;
-  padding: 7px 12px;
-  background: rgba(9, 20, 14, 0.85);
-  border: 1px solid rgba(82, 183, 136, 0.35);
-  border-radius: 4px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  margin-bottom: 12px;
 }
 
-.ss-name-prefix {
-  font-size: 0.76rem;
-  font-weight: 700;
+.ss-vine-top {
+  font-size: 0.85rem;
   color: #86efac;
-  white-space: nowrap;
+  letter-spacing: 4px;
+  margin-bottom: 2px;
+  text-shadow: 0 0 8px rgba(134, 239, 172, 0.5);
 }
 
-.ss-name-input-wrapper {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  gap: 6px;
-}
-
-.ss-name-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-size: 0.88rem;
-  font-weight: 700;
+.ss-concept-title {
+  font-size: 1.85rem;
+  font-weight: 900;
+  line-height: 1.1;
   color: #fef3c7;
-  outline: none;
-  font-family: inherit;
+  letter-spacing: 2.5px;
+  margin: 0;
+  font-family: 'Georgia', 'Playfair Display', serif;
+  text-shadow:
+    0 2px 0 #0d2818,
+    0 3px 8px rgba(0, 0, 0, 0.9),
+    0 0 20px rgba(245, 158, 11, 0.4);
+  text-transform: uppercase;
 }
 
-.ss-name-input::placeholder {
-  color: #6b7280;
-  font-weight: 400;
+.ss-vine-bottom {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #a7f3d0;
+  letter-spacing: 1px;
+  margin-top: 5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
-.ss-dice-btn {
-  background: transparent;
-  border: none;
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 2px;
-  opacity: 0.75;
-  transition: all 0.2s ease;
-  line-height: 1;
-}
-
-.ss-dice-btn:hover {
-  opacity: 1;
-  transform: rotate(20deg) scale(1.15);
-}
-
-/* ─── 2D Game Menu Action Buttons ────────────────────────────────────────── */
-.ss-menu-actions {
+/* ─── Hero Spotlight on Carved Stone Pedestal ────────────────────────────── */
+.ss-pedestal-section {
+  position: relative;
   display: flex;
   flex-direction: column;
+  align-items: center;
   width: 100%;
-  max-width: 320px;
-  gap: 9px;
+  margin-bottom: 14px;
 }
 
-.ss-btn {
+.ss-halo-glow {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 170px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.3) 0%, rgba(245, 158, 11, 0.12) 50%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: ss-pulse-glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes ss-pulse-glow {
+  from { opacity: 0.8; transform: translateX(-50%) scale(0.95); }
+  to   { opacity: 1.2; transform: translateX(-50%) scale(1.05); }
+}
+
+.ss-pedestal-stone {
+  position: relative;
+  z-index: 1;
+  width: 110px;
+  height: 38px;
+  background: linear-gradient(180deg, #3d4a41 0%, #202b23 55%, #131d17 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.5);
+  border-radius: 4px;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 11px 18px;
-  border-radius: 4px;
-  font-family: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  text-decoration: none;
+  margin-top: 50px;
 }
 
-/* Primary Play Button */
-.ss-btn--play {
-  background: linear-gradient(180deg, #245d44 0%, #133928 100%);
-  color: #fef3c7;
-  border: 1.5px solid #52b788;
-  font-size: 1rem;
-  letter-spacing: 0.6px;
-  box-shadow: inset 0 1px 0 rgba(167, 243, 208, 0.35),
-    0 4px 14px rgba(0, 0, 0, 0.5);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.ss-btn--play:hover:not(:disabled) {
-  background: linear-gradient(180deg, #2e7555 0%, #194834 100%);
-  transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    0 6px 20px rgba(45, 106, 79, 0.6),
-    0 0 12px rgba(82, 183, 136, 0.35);
-  border-color: #86efac;
-  color: #ffffff;
-}
-
-.ss-btn--play:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.ss-btn--play:disabled {
-  opacity: 0.7;
-  cursor: default;
-}
-
-.ss-btn-icon {
+.ss-pedestal-gem {
+  color: #fef08a;
   font-size: 0.85rem;
+  text-shadow: 0 0 6px #f59e0b;
 }
 
-/* Sub-Actions Row */
-.ss-btn-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.ss-hero-sprite-frame {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48px;
+  height: 68px;
+  overflow: hidden;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.ss-hero-sprite-img {
+  width: 192px;
+  height: 68px;
+  object-fit: cover;
+  object-position: 0 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.75));
+}
+
+.ss-hero-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  z-index: 2;
+}
+
+.ss-identity-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(10, 22, 16, 0.85);
+  border: 1px solid rgba(82, 183, 136, 0.35);
+  border-radius: 3px;
+  padding: 3px 8px;
+}
+
+.ss-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.ss-badge-hero {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #fef3c7;
+}
+
+.ss-name-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(20, 39, 29, 0.9);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 3px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ss-name-chip:hover {
+  background: rgba(30, 60, 45, 1);
+  border-color: #f59e0b;
+}
+
+.ss-name-text {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #fef08a;
+}
+
+.ss-dice-icon {
+  font-size: 0.72rem;
+}
+
+/* ─── Map Selector: Legacy vs New ────────────────────────────────────────── */
+.ss-map-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: rgba(10, 22, 16, 0.8);
+  border: 1px solid rgba(82, 183, 136, 0.25);
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-bottom: 14px;
+}
+
+.ss-map-bar-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #86efac;
+}
+
+.ss-map-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.ss-map-pill {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #a7f3d0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.ss-map-pill:hover {
+  color: #ffffff;
+  background: rgba(82, 183, 136, 0.15);
+}
+
+.ss-map-pill--active {
+  background: rgba(45, 106, 79, 0.9);
+  border-color: #f59e0b;
+  color: #fef08a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── 4 Stacked Action Buttons (Exact Concept A) ─────────────────────────── */
+.ss-stacked-actions {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   width: 100%;
 }
 
-.ss-btn--sub {
-  background: rgba(22, 45, 33, 0.85);
-  color: #d1fae5;
-  border: 1px solid rgba(82, 183, 136, 0.35);
-  font-size: 0.82rem;
-  padding: 9px 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.4);
+.ss-btn-exact {
+  width: 100%;
+  height: 40px;
+  border-radius: 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.3px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.ss-btn--sub:hover {
-  background: rgba(30, 60, 44, 0.95);
-  border-color: #52b788;
+/* Button 1: Enter World (Luminous Emerald) */
+.ss-btn-exact--play {
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+  border: 1.5px solid #34d399;
   color: #ffffff;
+  box-shadow:
+    0 4px 14px rgba(16, 185, 129, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.ss-btn-exact--play:hover {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  border-color: #fef08a;
   transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 6px 20px rgba(16, 185, 129, 0.55),
+    0 0 14px rgba(245, 158, 11, 0.4);
 }
 
-.ss-btn--sub:active {
-  transform: translateY(1px);
+.ss-btn-exact--play:active {
+  transform: translateY(0);
 }
 
-.ss-btn-sub-icon {
-  font-size: 0.85rem;
+/* Buttons 2, 3, 4: Slate Beveled Buttons */
+.ss-btn-exact--slate {
+  background: rgba(20, 39, 29, 0.92);
+  border: 1.5px solid rgba(82, 183, 136, 0.35);
+  color: #ecfdf5;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(254, 243, 199, 0.1);
 }
 
-/* ─── Mode 2: Character Roster ───────────────────────────────────────────── */
+.ss-btn-exact--slate:hover {
+  background: rgba(30, 60, 45, 0.98);
+  border-color: #f59e0b;
+  color: #ffffff;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.ss-btn-exact--slate:active {
+  transform: translateY(0);
+}
+
+/* ─── Mode 2: Character Roster ──────────────────────────────────────────── */
 .ss-card-stage--roster {
   max-width: 480px;
 }
@@ -491,7 +476,6 @@
   margin: 3px 0 0;
 }
 
-/* 7 Characters Grid */
 .ss-roster-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -535,8 +519,8 @@
 }
 
 .ss-roster-sprite-box {
-  width: 34px;
-  height: 48px;
+  width: 48px;
+  height: 68px;
   overflow: hidden;
   position: relative;
   image-rendering: pixelated;
@@ -545,12 +529,10 @@
 }
 
 .ss-roster-sprite-img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 136px;
-  height: 48px;
-  max-width: none;
+  width: 192px;
+  height: 68px;
+  object-fit: cover;
+  object-position: 0 0;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
@@ -596,7 +578,7 @@
   color: #fef3c7;
 }
 
-/* ─── Mode 3: Settings & Ambience ────────────────────────────────────────── */
+/* ─── Mode 3 & 4: Settings & Controls Dialogs ────────────────────────────── */
 .ss-card-stage--dialog {
   max-width: 400px;
 }
@@ -642,7 +624,6 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* ─── Mode 4: Controls ───────────────────────────────────────────────────── */
 .ss-controls-list {
   display: flex;
   flex-direction: column;
@@ -679,14 +660,4 @@
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
   color: #fef08a;
-}
-
-/* ─── Footer ─────────────────────────────────────────────────────────────── */
-.ss-footer {
-  margin-top: 14px;
-  font-size: 0.72rem;
-  color: rgba(254, 240, 138, 0.85);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
-  text-align: center;
-  letter-spacing: 0.3px;
 }

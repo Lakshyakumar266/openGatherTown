@@ -25,6 +25,7 @@ import {
   type GamePhase,
   type PlayerConfig,
   type GameSettings,
+  type MapType,
 } from "./game/gameContext";
 import {
   POIS,
@@ -777,11 +778,17 @@ function App() {
     saveStoryState(storyStateRef.current);
   }, [playerConfig]);
 
-  const handleEnterWorld = useCallback((config: PlayerConfig) => {
-    saveSession(config);
-    setPlayerConfigState(config);
-    setPhase("game");
-  }, [setPhase]);
+  const handleEnterWorld = useCallback(
+    (config: PlayerConfig, mapType?: MapType) => {
+      saveSession(config);
+      setPlayerConfigState(config);
+      if (mapType) {
+        updateSettings({ selectedMap: mapType });
+      }
+      setPhase("game");
+    },
+    [setPhase, updateSettings],
+  );
 
   const handleExitWorld = useCallback(() => {
     clearSession();
@@ -801,7 +808,12 @@ function App() {
         updateSettings,
       }}
     >
-      {phase === "start" && <StartScreen onEnter={handleEnterWorld} />}
+      {phase === "start" && (
+        <StartScreen
+          onEnter={handleEnterWorld}
+          initialMap={settings.selectedMap}
+        />
+      )}
 
       {phase === "game" && (
         <>

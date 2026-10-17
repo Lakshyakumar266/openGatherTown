@@ -1,15 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
   CHARACTER_OPTIONS,
-  DEFAULT_SETTINGS,
   type CharacterOption,
   type PlayerConfig,
+  type MapType,
 } from "../game/gameContext";
 import { audioManager } from "../game/audioManager";
 import "./StartScreen.css";
 
 type Props = {
-  onEnter: (config: PlayerConfig) => void;
+  onEnter: (config: PlayerConfig, mapType: MapType) => void;
+  initialMap?: MapType;
 };
 
 const COZY_NAMES = [
@@ -31,7 +32,8 @@ type MenuMode = "main" | "roster" | "settings" | "controls";
 
 /**
  * Atmospheric 2D background canvas rendering the living meadow scenery,
- * drifting wind blossoms, golden sun motes, and soft warm lighting.
+ * sunbeams/god-rays from upper-right, drifting wind blossoms, golden sun motes,
+ * and soft warm lighting matching Concept A.
  */
 function TitleBackgroundCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,16 +50,16 @@ function TitleBackgroundCanvas() {
     const bgImg = new Image();
     bgImg.src = "/BackgroundTerrain.png";
 
-    // 36 ambient floating particles (petals, dandelion fluff, and golden sun motes)
-    const particles = Array.from({ length: 36 }, () => ({
+    // 40 ambient floating particles (petals, dandelion fluff, and golden sun motes)
+    const particles = Array.from({ length: 40 }, () => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
       size: 2 + Math.random() * 3.5,
-      speedX: 0.35 + Math.random() * 0.65,
-      speedY: 0.1 + Math.random() * 0.35,
+      speedX: -0.3 - Math.random() * 0.5,
+      speedY: 0.2 + Math.random() * 0.4,
       sway: Math.random() * Math.PI * 2,
       swaySpeed: 0.02 + Math.random() * 0.03,
-      alpha: 0.3 + Math.random() * 0.5,
+      alpha: 0.35 + Math.random() * 0.5,
       type: Math.random() > 0.4 ? "petal" : "mote",
     }));
 
@@ -80,12 +82,11 @@ function TitleBackgroundCanvas() {
 
       // Draw peaceful background terrain centered on the cottage & well
       if (bgImg.complete && bgImg.naturalWidth > 0) {
-        const scale = Math.max(w / 1900, h / 1150, 0.75);
-        // Village house & well center coordinates on the 4096x2304 map
+        const scale = Math.max(w / 1920, h / 1080, 0.72);
         const targetFocusX = 1680;
         const targetFocusY = 980;
-        const driftX = Math.sin(time * 0.25) * 8;
-        const driftY = Math.cos(time * 0.2) * 6;
+        const driftX = Math.sin(time * 0.2) * 6;
+        const driftY = Math.cos(time * 0.16) * 4;
 
         ctx.save();
         ctx.translate(w / 2, h / 2);
@@ -100,47 +101,87 @@ function TitleBackgroundCanvas() {
         ctx.fillRect(0, 0, w, h);
       }
 
-      // Warm relaxing golden-hour overlay with soft vignette
+      // Atmospheric God Rays / Sunbeams from top right
+      ctx.save();
+      const numRays = 4;
+      for (let i = 0; i < numRays; i++) {
+        const rayAngle = 0.58 + Math.sin(time * 0.15 + i) * 0.03;
+        const rayX = w * 0.85 - i * 140;
+        const driftRayX = rayX - h * Math.tan(rayAngle);
+        const rayGrad = ctx.createLinearGradient(rayX, 0, driftRayX, h);
+        rayGrad.addColorStop(0, "rgba(255, 255, 220, 0.2)");
+        rayGrad.addColorStop(0.35, "rgba(254, 243, 199, 0.1)");
+        rayGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+        ctx.fillStyle = rayGrad;
+        ctx.beginPath();
+        ctx.moveTo(rayX, 0);
+        ctx.lineTo(rayX + 90, 0);
+        ctx.lineTo(driftRayX + 90, h);
+        ctx.lineTo(driftRayX, h);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Soft vignette
       const sunGrad = ctx.createRadialGradient(
         w * 0.5,
-        h * 0.3,
-        120,
+        h * 0.45,
+        150,
         w * 0.5,
         h * 0.5,
         Math.max(w, h) * 0.75,
       );
-      sunGrad.addColorStop(0, "rgba(255, 245, 210, 0.22)");
-      sunGrad.addColorStop(0.4, "rgba(45, 106, 79, 0.42)");
-      sunGrad.addColorStop(1, "rgba(12, 32, 22, 0.78)");
+      sunGrad.addColorStop(0, "rgba(255, 250, 220, 0.05)");
+      sunGrad.addColorStop(0.5, "rgba(20, 45, 30, 0.2)");
+      sunGrad.addColorStop(1, "rgba(10, 25, 17, 0.65)");
       ctx.fillStyle = sunGrad;
       ctx.fillRect(0, 0, w, h);
 
       // Animated floating petals and sun motes
       particles.forEach((p) => {
         p.x += p.speedX;
-        p.y += p.speedY + Math.sin(p.sway) * 0.35;
+        p.y += p.speedY;
         p.sway += p.swaySpeed;
+        const currentX = p.x + Math.sin(p.sway) * 16;
 
-        if (p.x > w + 20) p.x = -20;
-        if (p.y > h + 20) p.y = -20;
+        if (p.y > h + 20) {
+          p.y = -20;
+          p.x = Math.random() * (w + 200);
+        }
+        if (p.x < -40) {
+          p.x = w + 40;
+        }
 
         ctx.save();
         ctx.globalAlpha = p.alpha;
         if (p.type === "petal") {
-          ctx.fillStyle = "#a7f3d0";
+          ctx.fillStyle = "#ffffff";
           ctx.beginPath();
-          ctx.ellipse(p.x, p.y, p.size * 1.6, p.size * 0.75, p.sway, 0, Math.PI * 2);
+          ctx.ellipse(
+            currentX,
+            p.y,
+            p.size * 1.5,
+            p.size * 0.8,
+            p.sway,
+            0,
+            Math.PI * 2,
+          );
           ctx.fill();
         } else {
           ctx.fillStyle = "#fef08a";
+          ctx.shadowColor = "#f59e0b";
+          ctx.shadowBlur = 6;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size * 0.7, 0, Math.PI * 2);
+          ctx.arc(currentX, p.y, p.size * 0.6, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
       });
     };
 
+    bgImg.onload = () => {};
     render();
 
     return () => {
@@ -153,52 +194,50 @@ function TitleBackgroundCanvas() {
   return <canvas ref={canvasRef} className="ss-bg-canvas" />;
 }
 
-export function StartScreen({ onEnter }: Props) {
-  const [mode, setMode] = useState<MenuMode>("main");
-  const [selectedChar, setSelectedChar] = useState<CharacterOption>(CHARACTER_OPTIONS[0]);
-  const [name, setName] = useState("Wanderer");
-  const [entering, setEntering] = useState(false);
-  const [bgmMuted, setBgmMuted] = useState(false);
-  const [bgmVolume, setBgmVolume] = useState(0.45);
-  const [sfxVolume, setSfxVolume] = useState(0.65);
+export function StartScreen({ onEnter, initialMap = "new" }: Props) {
+  const [name, setName] = useState(() => {
+    return COZY_NAMES[Math.floor(Math.random() * COZY_NAMES.length)];
+  });
 
-  useEffect(() => {
-    audioManager.init(DEFAULT_SETTINGS);
-    const s = audioManager.getSettings();
-    setBgmMuted(s.bgmMuted);
-    setBgmVolume(s.bgmVolume);
-    setSfxVolume(s.sfxVolume);
+  const [selectedChar, setSelectedChar] = useState<CharacterOption>(
+    () => CHARACTER_OPTIONS[0],
+  );
+
+  const [mapType, setMapType] = useState<MapType>(initialMap);
+  const [mode, setMode] = useState<MenuMode>("main");
+  const [entering, setEntering] = useState(false);
+
+  // Audio settings synchronized with audioManager
+  const [audioSettings, setAudioSettings] = useState(() => audioManager.getSettings());
+  const [bgmMuted, setBgmMuted] = useState(audioSettings.bgmMuted);
+
+  const toggleMusic = useCallback(() => {
+    const nextMuted = audioManager.toggleBGMMute();
+    setBgmMuted(nextMuted);
+    setAudioSettings((prev) => ({ ...prev, bgmMuted: nextMuted }));
   }, []);
 
   const handleStartGame = useCallback(() => {
-    const finalName = name.trim() || selectedChar.name;
-    setEntering(true);
     audioManager.playJoin();
-    audioManager.playBGM();
+    setEntering(true);
     setTimeout(() => {
-      onEnter({ name: finalName, character: selectedChar });
-    }, 600);
-  }, [name, selectedChar, onEnter]);
-
-  const selectCharacter = useCallback((char: CharacterOption) => {
-    setSelectedChar(char);
-    audioManager.playSelect();
-  }, []);
+      onEnter(
+        {
+          name: name.trim() || "Adventurer",
+          character: selectedChar,
+        },
+        mapType,
+      );
+    }, 450);
+  }, [name, selectedChar, mapType, onEnter]);
 
   const randomizeName = useCallback(() => {
-    audioManager.playClick();
-    const pick = COZY_NAMES[Math.floor(Math.random() * COZY_NAMES.length)];
-    setName(pick);
-  }, []);
-
-  const toggleMusic = useCallback(() => {
-    audioManager.playClick();
-    const muted = audioManager.toggleBGMMute();
-    setBgmMuted(muted);
-    if (!muted) {
-      audioManager.playBGM();
-    }
-  }, []);
+    audioManager.playSelect();
+    const current = name.trim();
+    const available = COZY_NAMES.filter((n) => n !== current);
+    const chosen = available[Math.floor(Math.random() * available.length)];
+    setName(chosen);
+  }, [name]);
 
   const openRoster = useCallback(() => {
     audioManager.playOpen();
@@ -220,54 +259,48 @@ export function StartScreen({ onEnter }: Props) {
     setMode("main");
   }, []);
 
+  const selectCharacter = useCallback((char: CharacterOption) => {
+    audioManager.playSelect();
+    setSelectedChar(char);
+    setMode("main");
+  }, []);
+
   return (
     <div className={`ss-root ${entering ? "ss-root--entering" : ""}`}>
-      {/* 2D Meadow scenic background canvas */}
+      {/* 2D Meadow scenic background canvas with sunbeams */}
       <TitleBackgroundCanvas />
 
-      {/* Top right quick atmospheric controls */}
+      {/* Top right Music On/Off toggle switch matching Concept A */}
       <div className="ss-top-bar">
         <button
-          className={`ss-audio-pill ${bgmMuted ? "ss-audio-pill--muted" : ""}`}
+          className={`ss-music-switch ${!bgmMuted ? "ss-music-switch--on" : ""}`}
           onClick={toggleMusic}
           title={bgmMuted ? "Turn music on" : "Turn music off"}
         >
-          <span className="ss-audio-icon">{bgmMuted ? "🔇" : "🎵"}</span>
-          <span className="ss-audio-label">{bgmMuted ? "Music: Off" : "Music: On"}</span>
-        </button>
-        <button
-          className="ss-audio-pill"
-          onClick={openSettings}
-          title="Audio & Game Settings"
-        >
-          <span className="ss-audio-icon">⚙</span>
-          <span className="ss-audio-label">Settings</span>
+          <span className="ss-music-label">Music On</span>
+          <span className="ss-music-pill">
+            <span className="ss-music-pill-knob">{bgmMuted ? "OFF" : "ON"}</span>
+          </span>
         </button>
       </div>
 
-      {/* Main Title Container */}
+      {/* Main Title Modal Container */}
       <div className="ss-main-container">
-        {/* Title Header with classic 2D game aesthetics */}
-        <header className="ss-header">
-          <div className="ss-emblem">
-            <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-              <rect x="3" y="3" width="28" height="28" rx="8" fill="#1b4332" stroke="#52b788" strokeWidth="2" />
-              <circle cx="17" cy="17" r="7" fill="#52b788" opacity="0.3" />
-              <path d="M17 9v16M9 17h16" stroke="#d8f3dc" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </div>
-          <h1 className="ss-game-title">OPENGATHER</h1>
-          <p className="ss-game-tagline">~ A Peaceful Top-Down Journey ~</p>
-        </header>
-
-        {/* ─── Mode 1: Main Title Screen ─────────────────────────────────── */}
+        {/* ─── Mode 1: Main Title Screen (Exact Concept A Layout) ─────────── */}
         {mode === "main" && (
-          <div className="ss-card-stage ss-card-stage--pop">
-            {/* Hero Spotlight Stage */}
-            <div className="ss-hero-spotlight">
-              <div className="ss-pedestal">
-                <div className="ss-pedestal-ring" />
-                <div className="ss-hero-sprite-box">
+          <div className="ss-card-stage ss-card-stage--concept">
+            {/* 1. Header with stylized title & leaf vine flourishes */}
+            <div className="ss-concept-header">
+              <div className="ss-vine-top">🌿 ✧ 🌿</div>
+              <h1 className="ss-concept-title">WHISPERING MEADOWS</h1>
+            </div>
+
+            {/* 2. Hero Spotlight on Carved Stone Pedestal */}
+            <div className="ss-pedestal-section">
+              <div className="ss-halo-glow" />
+              <div className="ss-pedestal-stone">
+                <div className="ss-pedestal-gem">◇</div>
+                <div className="ss-hero-sprite-frame">
                   <img
                     src={`/characters/${selectedChar.folder}/playerDown.png`}
                     alt={selectedChar.name}
@@ -277,61 +310,67 @@ export function StartScreen({ onEnter }: Props) {
                 </div>
               </div>
 
-              <div className="ss-hero-info">
-                <div className="ss-hero-badge" style={{ borderColor: selectedChar.color }}>
+              {/* Adventurer Identity & Quick Reroll */}
+              <div className="ss-hero-identity">
+                <div className="ss-identity-badge" style={{ borderColor: selectedChar.color }}>
                   <span className="ss-badge-dot" style={{ backgroundColor: selectedChar.color }} />
-                  <span className="ss-badge-title">{selectedChar.name}</span>
+                  <span className="ss-badge-hero">{selectedChar.name}</span>
                 </div>
-                <p className="ss-hero-desc">{selectedChar.description}</p>
+                <div className="ss-name-chip" onClick={randomizeName} title="Click to reroll cozy name">
+                  <span className="ss-name-text">{name}</span>
+                  <span className="ss-dice-icon">🎲</span>
+                </div>
               </div>
             </div>
 
-            {/* Quick Name Field */}
-            <div className="ss-name-row">
-              <span className="ss-name-prefix">Adventurer:</span>
-              <div className="ss-name-input-wrapper">
-                <input
-                  type="text"
-                  className="ss-name-input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={18}
-                  placeholder="Your Name"
-                  spellCheck={false}
-                />
+            {/* 3. Map Selection Toggle: Whispering Ruins vs Oakhaven Glade */}
+            <div className="ss-map-bar">
+              <span className="ss-map-bar-label">🗺️ Realm:</span>
+              <div className="ss-map-pills">
                 <button
-                  className="ss-dice-btn"
-                  onClick={randomizeName}
-                  title="Randomize cozy name"
+                  className={`ss-map-pill ${mapType === "new" ? "ss-map-pill--active" : ""}`}
+                  onClick={() => {
+                    audioManager.playSelect();
+                    setMapType("new");
+                  }}
                 >
-                  🎲
+                  Whispering Ruins (New)
+                </button>
+                <button
+                  className={`ss-map-pill ${mapType === "legacy" ? "ss-map-pill--active" : ""}`}
+                  onClick={() => {
+                    audioManager.playSelect();
+                    setMapType("legacy");
+                  }}
+                >
+                  Oakhaven Glade (Legacy)
                 </button>
               </div>
             </div>
 
-            {/* Main 2D Game Menu Actions */}
-            <div className="ss-menu-actions">
+            {/* 4. Four Stacked Vertical Action Buttons */}
+            <div className="ss-stacked-actions">
               <button
-                className="ss-btn ss-btn--play"
+                className="ss-btn-exact ss-btn-exact--play"
                 onClick={handleStartGame}
                 disabled={entering}
               >
-                <span className="ss-btn-icon">▶</span>
-                <span className="ss-btn-text">
-                  {entering ? "Entering Meadow…" : "Enter World"}
+                <span className="ss-btn-play-text">
+                  {entering ? "Entering Realm…" : "Enter World"}
                 </span>
               </button>
 
-              <div className="ss-btn-row">
-                <button className="ss-btn ss-btn--sub" onClick={openRoster}>
-                  <span className="ss-btn-sub-icon">👤</span>
-                  <span>Change Hero</span>
-                </button>
-                <button className="ss-btn ss-btn--sub" onClick={openControls}>
-                  <span className="ss-btn-sub-icon">❓</span>
-                  <span>How to Play</span>
-                </button>
-              </div>
+              <button className="ss-btn-exact ss-btn-exact--slate" onClick={openRoster}>
+                Change Hero
+              </button>
+
+              <button className="ss-btn-exact ss-btn-exact--slate" onClick={openSettings}>
+                Settings
+              </button>
+
+              <button className="ss-btn-exact ss-btn-exact--slate" onClick={openControls}>
+                How to Play
+              </button>
             </div>
           </div>
         )}
@@ -347,7 +386,6 @@ export function StartScreen({ onEnter }: Props) {
               <p className="ss-stage-sub">Select your traveler to explore the meadow with.</p>
             </div>
 
-            {/* 7 Characters Grid including classic Wanderer */}
             <div className="ss-roster-grid">
               {CHARACTER_OPTIONS.map((char) => {
                 const isSelected = char.id === selectedChar.id;
@@ -367,119 +405,131 @@ export function StartScreen({ onEnter }: Props) {
                       />
                     </div>
                     <span className="ss-roster-name">{char.name}</span>
-                    {isSelected && <div className="ss-roster-active-badge">✓</div>}
+                    {isSelected && <span className="ss-roster-active-badge">✓</span>}
                   </button>
                 );
               })}
             </div>
 
-            {/* Selected Hero Preview Summary */}
             <div className="ss-roster-summary">
-              <span className="ss-badge-dot" style={{ backgroundColor: selectedChar.color }} />
-              <strong>{selectedChar.name}:</strong>
-              <span>{selectedChar.description}</span>
+              <strong>{selectedChar.name}:</strong> {selectedChar.description}
             </div>
 
-            <button className="ss-btn ss-btn--play" onClick={handleStartGame}>
-              <span>Confirm & Enter World ▶</span>
+            <button className="ss-btn-exact ss-btn-exact--play" onClick={backToMain}>
+              Confirm Selection
             </button>
           </div>
         )}
 
-        {/* ─── Mode 3: Settings ─────────────────────────────────────────── */}
+        {/* ─── Mode 3: Quick Settings ─────────────────────────────────────── */}
         {mode === "settings" && (
           <div className="ss-card-stage ss-card-stage--dialog">
             <div className="ss-stage-header">
               <button className="ss-back-link" onClick={backToMain}>
-                ← Back
+                ← Back to Menu
               </button>
-              <h2 className="ss-stage-title">⚙️ Audio & Ambience</h2>
+              <h2 className="ss-stage-title">Audio & Sound</h2>
+              <p className="ss-stage-sub">Adjust your acoustic relaxing atmosphere.</p>
             </div>
 
             <div className="ss-settings-body">
               <div className="ss-setting-row">
-                <span className="ss-setting-label">🎵 Peaceful Music</span>
+                <span className="ss-setting-label">Music Volume</span>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.05"
-                  value={bgmMuted ? 0 : bgmVolume}
+                  value={audioSettings.bgmMuted ? 0 : audioSettings.bgmVolume}
                   onChange={(e) => {
                     const v = parseFloat(e.target.value);
-                    setBgmVolume(v);
-                    setBgmMuted(v === 0);
                     audioManager.setBGMVolume(v);
+                    setAudioSettings(audioManager.getSettings());
                   }}
                   className="ss-slider"
                 />
-                <span className="ss-pct">{Math.round((bgmMuted ? 0 : bgmVolume) * 100)}%</span>
+                <span className="ss-pct">
+                  {audioSettings.bgmMuted ? 0 : Math.round(audioSettings.bgmVolume * 100)}%
+                </span>
               </div>
 
               <div className="ss-setting-row">
-                <span className="ss-setting-label">🔔 Sound Effects</span>
+                <span className="ss-setting-label">Sound FX</span>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.05"
-                  value={sfxVolume}
+                  value={audioSettings.sfxMuted ? 0 : audioSettings.sfxVolume}
                   onChange={(e) => {
                     const v = parseFloat(e.target.value);
-                    setSfxVolume(v);
                     audioManager.setSFXVolume(v);
-                    audioManager.playClick();
+                    setAudioSettings(audioManager.getSettings());
                   }}
                   className="ss-slider"
                 />
-                <span className="ss-pct">{Math.round(sfxVolume * 100)}%</span>
+                <span className="ss-pct">
+                  {audioSettings.sfxMuted ? 0 : Math.round(audioSettings.sfxVolume * 100)}%
+                </span>
               </div>
             </div>
 
-            <button className="ss-btn ss-btn--sub" onClick={backToMain}>
-              Done
+            <button className="ss-btn-exact ss-btn-exact--play" onClick={backToMain}>
+              Save & Return
             </button>
           </div>
         )}
 
-        {/* ─── Mode 4: Controls ─────────────────────────────────────────── */}
+        {/* ─── Mode 4: Controls ───────────────────────────────────────────── */}
         {mode === "controls" && (
           <div className="ss-card-stage ss-card-stage--dialog">
             <div className="ss-stage-header">
               <button className="ss-back-link" onClick={backToMain}>
-                ← Back
+                ← Back to Menu
               </button>
-              <h2 className="ss-stage-title">🎮 How to Play</h2>
+              <h2 className="ss-stage-title">Keybindings</h2>
+              <p className="ss-stage-sub">How to navigate the Whispering Meadows.</p>
             </div>
 
             <div className="ss-controls-list">
               <div className="ss-control-item">
                 <div className="ss-keys">
-                  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+                  <kbd>W</kbd>
+                  <kbd>A</kbd>
+                  <kbd>S</kbd>
+                  <kbd>D</kbd>
                 </div>
-                <span>Walk in four directions through the world</span>
+                <span>Walk in four directions</span>
               </div>
               <div className="ss-control-item">
                 <div className="ss-keys">
-                  <kbd>Double Click</kbd>
+                  <kbd>E</kbd>
                 </div>
-                <span>Auto-walk pathfinding to clicked tile</span>
+                <span>Talk to NPCs / Inspect ancient landmarks</span>
               </div>
               <div className="ss-control-item">
                 <div className="ss-keys">
-                  <kbd>+</kbd><kbd>-</kbd><kbd>Scroll</kbd>
+                  <kbd>B</kbd>
+                  <kbd>I</kbd>
                 </div>
-                <span>Zoom camera closer or panoramic</span>
+                <span>Open Traveler's Bag & inventory satchel</span>
               </div>
               <div className="ss-control-item">
                 <div className="ss-keys">
-                  <kbd>?</kbd>
+                  <kbd>Double-click</kbd>
                 </div>
-                <span>Toggle in-game controls overlay anytime</span>
+                <span>Auto-walk pathfinding to target</span>
+              </div>
+              <div className="ss-control-item">
+                <div className="ss-keys">
+                  <kbd>+</kbd>
+                  <kbd>-</kbd>
+                </div>
+                <span>Zoom camera in & out (or mouse wheel)</span>
               </div>
             </div>
 
-            <button className="ss-btn ss-btn--sub" onClick={backToMain}>
+            <button className="ss-btn-exact ss-btn-exact--play" onClick={backToMain}>
               Got It
             </button>
           </div>

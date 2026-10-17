@@ -67,6 +67,8 @@ export type PlayerConfig = {
   character: CharacterOption;
 };
 
+export type MapType = "legacy" | "new";
+
 export type GameSettings = {
   bgmVolume: number;
   sfxVolume: number;
@@ -79,6 +81,7 @@ export type GameSettings = {
   zoomLevel: number;
   particlesEnabled: boolean;
   footstepsEnabled: boolean;
+  selectedMap: MapType;
 };
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -93,6 +96,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   zoomLevel: 1.0,
   particlesEnabled: true,
   footstepsEnabled: true,
+  selectedMap: "new",
 };
 
 export type GameContextType = {
