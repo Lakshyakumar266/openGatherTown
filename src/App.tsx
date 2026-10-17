@@ -26,25 +26,46 @@ import {
   type PlayerConfig,
   type GameSettings,
 } from "./game/gameContext";
+import {
+  POIS,
+  DIALOGUE_NODES,
+  loadSavedStory,
+  saveStoryState,
+  type StoryState,
+  type InteractablePOI,
+  type DialogueNode,
+  type DialogueOption,
+} from "./game/story";
 import { StartScreen } from "./components/StartScreen";
 import { GameHUD } from "./components/GameHUD";
+import { DialogueBox } from "./components/DialogueBox";
+import { QuestTracker } from "./components/QuestTracker";
 
-const MOVE_SPEED = 5;
 const WAYPOINT_STOP_DISTANCE = 4;
 const MAP_TILE_SIZE = 64;
 const MAP_COLS = 64;
 const MAP_ROWS_APPROX = 56;
 
+// Fixed world coordinates outside the cottage door
+const SPAWN_WORLD_X = 635;
+const SPAWN_WORLD_Y = 305;
+
 // ── Session persistence helpers ────────────────────────────────────────────
 const SESSION_KEY = "og_player_config";
+const POSITION_KEY = "og_player_pos";
 
 function saveSession(config: PlayerConfig) {
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-      name: config.name,
-      characterId: config.character.id,
-    }));
-  } catch { /* ignore */ }
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        name: config.name,
+        characterId: config.character.id,
+      }),
+    );
+  } catch {
+    /* ignore */
+  }
 }
 
 function loadSession(): PlayerConfig | null {
@@ -52,14 +73,38 @@ function loadSession(): PlayerConfig | null {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const { name, characterId } = JSON.parse(raw) as { name: string; characterId: string };
-    const character = CHARACTER_OPTIONS.find(c => c.id === characterId);
+    const character = CHARACTER_OPTIONS.find((c) => c.id === characterId);
     if (!character) return null;
     return { name, character };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function clearSession() {
-  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function savePlayerPos(x: number, y: number) {
+  try {
+    localStorage.setItem(POSITION_KEY, JSON.stringify({ x, y }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadPlayerPos(): Point | null {
+  try {
+    const raw = localStorage.getItem(POSITION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 // ── Hash routing helpers ───────────────────────────────────────────────────
@@ -114,12 +159,23 @@ function App() {
   });
   const [fps, setFps] = useState(0);
 
+  // Story state, active POI, and active dialogue
+  const [storyState, setStoryState] = useState<StoryState>(() => loadSavedStory());
+  const [activePOI, setActivePOI] = useState<InteractablePOI | null>(null);
+  const [activeDialogue, setActiveDialogue] = useState<DialogueNode | null>(null);
+
   const updateSettings = useCallback((partial: Partial<GameSettings>) => {
     setSettings((s) => ({ ...s, ...partial }));
   }, []);
 
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+
+  const storyStateRef = useRef(storyState);
+  storyStateRef.current = storyState;
+
+  const activeDialogueRef = useRef(activeDialogue);
+  activeDialogueRef.current = activeDialogue;
 
   // Listen to back/forward hash changes
   useEffect(() => {
@@ -155,6 +211,10 @@ function App() {
 
   const offset = { x: 0, y: -430 };
 
+  // Ref to trigger teleport from HUD
+  const teleportRef = useRef<((target: Point) => void) | null>(null);
+  const getPlayerPosRef = useRef<(() => Point) | null>(null);
+
   // ── Game loop ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "game" || !playerConfig) return;
@@ -169,6 +229,14 @@ function App() {
 
     let animId = 0;
     let cancelled = false;
+
+    // Responsive Canvas Resizing
+    const handleResize = () => {
+      if (!canvas) return;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    window.addEventListener("resize", handleResize);
 
     // ── Boundaries ──
     const boundaries: Boundary[] = [];
@@ -201,6 +269,10 @@ function App() {
       npcUp: "/playerUp.png",
       npcLeft: "/playerLeft.png",
       npcRight: "/playerRight.png",
+      elderDown: "/characters/03-brom/playerDown.png",
+      elderUp: "/characters/03-brom/playerUp.png",
+      elderLeft: "/characters/03-brom/playerLeft.png",
+      elderRight: "/characters/03-brom/playerRight.png",
     };
 
     Promise.all(
@@ -225,13 +297,17 @@ function App() {
           position: { x: offset.x, y: offset.y },
         });
 
+        const savedPos = loadPlayerPos();
+        const initialX = savedPos?.x ?? SPAWN_WORLD_X;
+        const initialY = savedPos?.y ?? SPAWN_WORLD_Y;
+
         const player = new Sprite({
           ctx,
           image: imgs.pDown,
           name: playerConfig.name,
           position: {
-            x: canvas.width / 2 - 192 / 4,
-            y: canvas.height / 2 - 68 / 2,
+            x: initialX,
+            y: initialY,
           },
           frames: { max: 4 },
           sprites: {
@@ -247,8 +323,8 @@ function App() {
           image: imgs.npcDown,
           name: "Echo",
           position: {
-            x: canvas.width / 2 - 192 + 84,
-            y: canvas.height / 2 - 68 + 84,
+            x: POIS[1].position.x,
+            y: POIS[1].position.y,
           },
           frames: { max: 4 },
           sprites: {
@@ -259,7 +335,36 @@ function App() {
           },
         });
 
-        const allPlayers = [player, npc];
+        const elder = new Sprite({
+          ctx,
+          image: imgs.elderDown,
+          name: "Elder Oakhaven",
+          position: {
+            x: POIS[0].position.x,
+            y: POIS[0].position.y,
+          },
+          frames: { max: 4 },
+          sprites: {
+            up: imgs.elderUp,
+            down: imgs.elderDown,
+            right: imgs.elderRight,
+            left: imgs.elderLeft,
+          },
+        });
+
+        const allPlayers = [player, npc, elder];
+
+        // Teleport helper
+        teleportRef.current = (target: Point) => {
+          player.position.x = target.x;
+          player.position.y = target.y;
+          savePlayerPos(target.x, target.y);
+        };
+
+        getPlayerPosRef.current = () => ({
+          x: player.position.x,
+          y: player.position.y,
+        });
 
         // ── Ambient system ──
         const mapW = MAP_COLS * MAP_TILE_SIZE;
@@ -272,17 +377,25 @@ function App() {
         const keyOrder: MovementKey[] = [];
         const sprinkles: SprinkleParticle[] = [];
         let clickPath: Point[] = [];
-        let zoom = 1;
+        let currentZoom = settingsRef.current.zoomLevel || 1.0;
 
-        const clampZoom = (v: number) => Math.max(0.9, Math.min(1.5, v));
-        const changeZoom = (amount: number) => { zoom = clampZoom(zoom + amount); };
         const isMovementKey = (v: string): v is MovementKey =>
           v === "w" || v === "a" || v === "s" || v === "d";
 
         const handleKeyDown = (e: KeyboardEvent) => {
+          if (activeDialogueRef.current) return; // Freeze movement during dialogue
+
           const key = e.key.toLowerCase();
-          if (key === "+" || key === "=") { e.preventDefault(); changeZoom(0.05); return; }
-          if (key === "-" || key === "_") { e.preventDefault(); changeZoom(-0.05); return; }
+          if (key === "+" || key === "=") {
+            e.preventDefault();
+            currentZoom = Math.min(1.5, currentZoom + 0.05);
+            return;
+          }
+          if (key === "-" || key === "_") {
+            e.preventDefault();
+            currentZoom = Math.max(0.75, currentZoom - 0.05);
+            return;
+          }
           if (!isMovementKey(key)) return;
           clickPath = [];
           keys[key] = true;
@@ -310,7 +423,8 @@ function App() {
 
         const handleWheel = (e: WheelEvent) => {
           e.preventDefault();
-          changeZoom(e.deltaY < 0 ? 0.05 : -0.05);
+          const delta = e.deltaY < 0 ? 0.05 : -0.05;
+          currentZoom = Math.max(0.75, Math.min(1.5, currentZoom + delta));
         };
         canvas.addEventListener("wheel", handleWheel, { passive: false });
 
@@ -327,8 +441,8 @@ function App() {
           const cx = ((clientX - rect.left) / rect.width) * canvas.width;
           const cy = ((clientY - rect.top) / rect.height) * canvas.height;
           return {
-            x: camera.position.x + (cx - canvas.width / 2) / zoom,
-            y: camera.position.y + (cy - canvas.height / 2) / zoom,
+            x: camera.position.x + (cx - canvas.width / 2) / currentZoom,
+            y: camera.position.y + (cy - canvas.height / 2) / currentZoom,
           };
         };
 
@@ -363,6 +477,7 @@ function App() {
         };
 
         const handleDblClick = (e: MouseEvent) => {
+          if (!settingsRef.current.clickToMove || activeDialogueRef.current) return;
           e.preventDefault();
           const target = screenToWorld(e.clientX, e.clientY);
           clickPath = buildClickPath({
@@ -378,13 +493,26 @@ function App() {
 
         canvas.addEventListener("dblclick", handleDblClick);
 
+        // Movement Speed Calculation
+        const getPaceSpeed = () => {
+          let base = 5.2; // jog
+          if (settingsRef.current.moveSpeed === "walk") base = 3.6;
+          if (settingsRef.current.moveSpeed === "swift") base = 6.8;
+          // Whisperwind Cloak speed boost
+          if (storyStateRef.current.inventory.some((i) => i.id === "whisperCloak")) {
+            base += 1.2;
+          }
+          return base;
+        };
+
         const followClickPath = () => {
           if (clickPath.length === 0 || keyOrder.length > 0) return false;
+          const pace = getPaceSpeed();
           const move = getNextClickMovement({
             path: clickPath,
             center: playerCenter(),
             stopDistance: WAYPOINT_STOP_DISTANCE,
-            maxStep: MOVE_SPEED,
+            maxStep: pace,
           });
           if (!move) return clickPath.length > 0;
           player.moving = true;
@@ -392,7 +520,11 @@ function App() {
             move.x !== 0
               ? move.x > 0 ? player.sprites!.right : player.sprites!.left
               : move.y > 0 ? player.sprites!.down : player.sprites!.up;
-          if (wouldCollide(move)) { clickPath = []; player.moving = false; return false; }
+          if (wouldCollide(move)) {
+            clickPath = [];
+            player.moving = false;
+            return false;
+          }
           movePlayer(move);
           return true;
         };
@@ -400,6 +532,7 @@ function App() {
         // FPS
         let lastTime = performance.now();
         let frameCount = 0;
+        let lastPosSave = 0;
 
         // ── Game loop ──
         function gameLoop(): void {
@@ -414,23 +547,51 @@ function App() {
             lastTime = now;
           }
 
+          // Periodic player position save (every 5 seconds)
+          if (now - lastPosSave > 5000) {
+            savePlayerPos(player.position.x, player.position.y);
+            lastPosSave = now;
+          }
+
+          // Smooth Camera tracking
           camera.position.x = player.position.x + player.width / 2;
           camera.position.y = player.position.y + player.height / 2;
 
+          // Clear Canvas
           ctx.fillStyle = "rgb(44 87 145)";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // Render World
           ctx.save();
           ctx.translate(canvas.width / 2, canvas.height / 2);
-          ctx.scale(zoom, zoom);
+          ctx.scale(currentZoom, currentZoom);
           ctx.translate(-camera.position.x, -camera.position.y);
 
           background.draw();
           boundaries.forEach((b) => b.draw());
 
-          updateAmbient(ambientSys);
-          drawAmbient(ctx, ambientSys);
+          // Ambient Particles (if enabled)
+          if (settingsRef.current.particlesEnabled) {
+            updateAmbient(ambientSys);
+            drawAmbient(ctx, ambientSys);
+          }
 
+          // Render POI ground markers / halos
+          POIS.forEach((poi) => {
+            if (poi.type === "object") {
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(poi.position.x, poi.position.y, 22, 0, Math.PI * 2);
+              ctx.fillStyle = "rgba(245, 158, 11, 0.12)";
+              ctx.fill();
+              ctx.lineWidth = 1.5;
+              ctx.strokeStyle = "rgba(245, 158, 11, 0.35)";
+              ctx.stroke();
+              ctx.restore();
+            }
+          });
+
+          // Y-Sorted Characters
           const sortedPlayers = [...allPlayers].sort((a, b) => a.position.y - b.position.y);
           sortedPlayers.forEach((s) => {
             const originalName = s.name;
@@ -442,33 +603,82 @@ function App() {
           forground.draw();
           drawSprinkles(ctx, sprinkles);
 
-          ctx.restore();
+          // Proximity detection for POIs
+          const pCenter = playerCenter();
+          let nearestPOI: InteractablePOI | null = null;
+          let nearestDist = Infinity;
 
-          let moved = false;
-          player.moving = false;
-          const activeKey = keyOrder[keyOrder.length - 1];
-
-          if (activeKey === "w" && keys.w) {
-            player.image = player.sprites!.up;
-            player.moving = true;
-            if (!wouldCollide({ x: 0, y: -MOVE_SPEED })) { movePlayer({ x: 0, y: -MOVE_SPEED }); moved = true; }
-          } else if (activeKey === "a" && keys.a) {
-            player.image = player.sprites!.left;
-            player.moving = true;
-            if (!wouldCollide({ x: -MOVE_SPEED, y: 0 })) { movePlayer({ x: -MOVE_SPEED, y: 0 }); moved = true; }
-          } else if (activeKey === "s" && keys.s) {
-            player.image = player.sprites!.down;
-            player.moving = true;
-            if (!wouldCollide({ x: 0, y: MOVE_SPEED })) { movePlayer({ x: 0, y: MOVE_SPEED }); moved = true; }
-          } else if (activeKey === "d" && keys.d) {
-            player.image = player.sprites!.right;
-            player.moving = true;
-            if (!wouldCollide({ x: MOVE_SPEED, y: 0 })) { movePlayer({ x: MOVE_SPEED, y: 0 }); moved = true; }
-          } else {
-            moved = followClickPath();
+          for (const poi of POIS) {
+            const dx = pCenter.x - poi.position.x;
+            const dy = pCenter.y - poi.position.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist <= poi.radius && dist < nearestDist) {
+              nearestDist = dist;
+              nearestPOI = poi;
+            }
           }
 
-          audioManager.playFootstep(moved && player.moving);
+          setActivePOI(nearestPOI);
+
+          // Draw floating interactable glyph above nearest POI if not in dialogue
+          if (nearestPOI && !activeDialogueRef.current) {
+            ctx.save();
+            const glyphY = nearestPOI.position.y - (nearestPOI.type === "npc" ? 52 : 36);
+            ctx.font = "bold 13px 'JetBrains Mono', monospace";
+            ctx.fillStyle = "#fef3c7";
+            ctx.shadowColor = "rgba(0,0,0,0.8)";
+            ctx.shadowBlur = 6;
+            ctx.textAlign = "center";
+            ctx.fillText("[E]", nearestPOI.position.x, glyphY);
+            ctx.restore();
+          }
+
+          ctx.restore();
+
+          // Movement Update
+          let moved = false;
+          player.moving = false;
+
+          if (!activeDialogueRef.current) {
+            const activeKey = keyOrder[keyOrder.length - 1];
+            const pace = getPaceSpeed();
+
+            if (activeKey === "w" && keys.w) {
+              player.image = player.sprites!.up;
+              player.moving = true;
+              if (!wouldCollide({ x: 0, y: -pace })) {
+                movePlayer({ x: 0, y: -pace });
+                moved = true;
+              }
+            } else if (activeKey === "a" && keys.a) {
+              player.image = player.sprites!.left;
+              player.moving = true;
+              if (!wouldCollide({ x: -pace, y: 0 })) {
+                movePlayer({ x: -pace, y: 0 });
+                moved = true;
+              }
+            } else if (activeKey === "s" && keys.s) {
+              player.image = player.sprites!.down;
+              player.moving = true;
+              if (!wouldCollide({ x: 0, y: pace })) {
+                movePlayer({ x: 0, y: pace });
+                moved = true;
+              }
+            } else if (activeKey === "d" && keys.d) {
+              player.image = player.sprites!.right;
+              player.moving = true;
+              if (!wouldCollide({ x: pace, y: 0 })) {
+                movePlayer({ x: pace, y: 0 });
+                moved = true;
+              }
+            } else {
+              moved = followClickPath();
+            }
+          }
+
+          if (settingsRef.current.footstepsEnabled) {
+            audioManager.playFootstep(moved && player.moving);
+          }
         }
 
         // Auto-play BGM if entering via refresh (no start screen click)
@@ -482,6 +692,7 @@ function App() {
           window.removeEventListener("keydown", handleKeyDown);
           window.removeEventListener("keyup", handleKeyUp);
           window.removeEventListener("blur", handleWindowBlur);
+          window.removeEventListener("resize", handleResize);
           canvas.removeEventListener("wheel", handleWheel);
           canvas.removeEventListener("dblclick", handleDblClick);
         };
@@ -493,11 +704,65 @@ function App() {
     return () => {
       cancelled = true;
       cancelAnimationFrame(animId);
+      window.removeEventListener("resize", handleResize);
       const c = canvasRef.current as unknown as { _cleanup?: () => void } | null;
       if (c?._cleanup) c._cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, playerConfig, collisionsMap]);
+
+  // Dialogue Interaction Triggers
+  const handleStartInteract = useCallback(
+    (poi: InteractablePOI) => {
+      audioManager.playOpen();
+      const nodeId = poi.initialNodeId(storyStateRef.current);
+      const node = DIALOGUE_NODES[nodeId];
+      if (node) {
+        setActiveDialogue(node);
+      }
+    },
+    [],
+  );
+
+  const handleSelectDialogueOption = useCallback((option: DialogueOption) => {
+    const state = { ...storyStateRef.current };
+
+    if (option.onSelect) {
+      option.onSelect(state);
+      setStoryState({ ...state });
+      saveStoryState(state);
+    }
+
+    if (option.nextNodeId) {
+      const nextNode = DIALOGUE_NODES[option.nextNodeId];
+      if (nextNode) {
+        setActiveDialogue(nextNode);
+        return;
+      }
+    }
+
+    // Close dialogue
+    setActiveDialogue(null);
+  }, []);
+
+  const handleCloseDialogue = useCallback(() => {
+    setActiveDialogue(null);
+  }, []);
+
+  const handleTeleportToWell = useCallback(() => {
+    if (teleportRef.current) {
+      teleportRef.current({ x: 800, y: 220 });
+    }
+  }, []);
+
+  const handleSaveGame = useCallback(() => {
+    if (playerConfig) saveSession(playerConfig);
+    if (getPlayerPosRef.current) {
+      const pos = getPlayerPosRef.current();
+      savePlayerPos(pos.x, pos.y);
+    }
+    saveStoryState(storyStateRef.current);
+  }, [playerConfig]);
 
   const handleEnterWorld = useCallback((config: PlayerConfig) => {
     saveSession(config);
@@ -533,14 +798,33 @@ function App() {
             height={window.innerHeight}
             style={{ display: "block", background: "rgb(44 87 145)" }}
           />
+
           {playerConfig && (
-            <GameHUD
-              playerName={playerConfig.name}
-              settings={settings}
-              onUpdateSettings={updateSettings}
-              fps={fps}
-              onExitWorld={handleExitWorld}
-            />
+            <>
+              <GameHUD
+                playerName={playerConfig.name}
+                settings={settings}
+                onUpdateSettings={updateSettings}
+                fps={fps}
+                onExitWorld={handleExitWorld}
+                onTeleportToWell={handleTeleportToWell}
+                onSaveGame={handleSaveGame}
+              />
+
+              <QuestTracker
+                storyState={storyState}
+                activePOI={activePOI}
+                onInteract={handleStartInteract}
+              />
+
+              {activeDialogue && (
+                <DialogueBox
+                  node={activeDialogue}
+                  onSelectOption={handleSelectDialogueOption}
+                  onClose={handleCloseDialogue}
+                />
+              )}
+            </>
           )}
         </>
       )}

@@ -74,6 +74,11 @@ export type GameSettings = {
   sfxMuted: boolean;
   showFps: boolean;
   showNameplates: boolean;
+  moveSpeed: "walk" | "jog" | "swift";
+  clickToMove: boolean;
+  zoomLevel: number;
+  particlesEnabled: boolean;
+  footstepsEnabled: boolean;
 };
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -83,6 +88,11 @@ export const DEFAULT_SETTINGS: GameSettings = {
   sfxMuted: false,
   showFps: false,
   showNameplates: true,
+  moveSpeed: "jog",
+  clickToMove: true,
+  zoomLevel: 1.0,
+  particlesEnabled: true,
+  footstepsEnabled: true,
 };
 
 export type GameContextType = {
