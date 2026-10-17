@@ -80,14 +80,17 @@ function TitleBackgroundCanvas() {
 
       // Draw peaceful background terrain centered on the cottage & well
       if (bgImg.complete && bgImg.naturalWidth > 0) {
-        const panX = -120 + Math.sin(time * 0.25) * 6;
-        const panY = -380 + Math.cos(time * 0.2) * 5;
-        const scale = Math.max(w / 1100, h / 750) * 1.08;
+        const scale = Math.max(w / 1900, h / 1150, 0.75);
+        // Village house & well center coordinates on the 4096x2304 map
+        const targetFocusX = 1680;
+        const targetFocusY = 980;
+        const driftX = Math.sin(time * 0.25) * 8;
+        const driftY = Math.cos(time * 0.2) * 6;
 
         ctx.save();
         ctx.translate(w / 2, h / 2);
         ctx.scale(scale, scale);
-        ctx.drawImage(bgImg, panX, panY);
+        ctx.drawImage(bgImg, -targetFocusX + driftX, -targetFocusY + driftY);
         ctx.restore();
       } else {
         const grad = ctx.createLinearGradient(0, 0, w, h);
