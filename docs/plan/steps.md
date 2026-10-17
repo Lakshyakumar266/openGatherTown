@@ -1,26 +1,27 @@
-# Execution Steps: OpenGather Enhancements & Fixes
+# Execution Steps: OpenGather Layered World & RPG Expansion
 
-## Phase 10: Animal Movement & Direction Glitch Fix
-- [ ] Step 10.1: Correct animal sprite horizontal facing flip in `src/game/animals.ts` so animals face forward when walking in both directions.
-- [ ] Step 10.2: Smooth out wander target selection and flee reactions.
+## Phase 15: Layered Map Architecture & World Border
+- [ ] Step 15.1: Implement layered terrain model (Sea/Ocean base border, Grass/Island contours, Footpath networks, Prefab multi-tile structures: Houses, Stone Wells, Fences, Wooden Bridges/Docks, Chests, Barrels).
+- [ ] Step 15.2: Ensure multi-tile structures (houses, 2-tile trees) are placed as cohesive compound structures with exact vertical bonding (preventing tree tops/trunks from being disjointed).
+- [ ] Step 15.3: Add deep sea border padding around world edges so camera never exposes empty background void.
 
-## Phase 11: Start Screen Polish, OpenGather Branding & Responsiveness
-- [ ] Step 11.1: Update title to `OPENGATHER` with elegant leaf vine typography.
-- [ ] Step 11.2: Add clean text `<input>` for hero name with `🎲` cozy reroll button.
-- [ ] Step 11.3: Add a dedicated `Realm` tab / view for choosing between Oakhaven Glade and the Big WFC Ruins, removing clutter from the main card.
-- [ ] Step 11.4: Fix CSS heights, margins, and padding in `StartScreen.css` so the modal card never overflows on 1366x679 or smaller screens.
+## Phase 16: Fluid Movement Engine & Spawn Fixes
+- [ ] Step 16.1: Refactor movement loop to use vector-based velocity with wall-sliding (separate X and Y collision tests) so WASD and Arrow keys (including 'D') operate smoothly without sticking.
+- [ ] Step 16.2: Fix legacy world spawn coordinates to safe dry land on the cottage path (`x: 730, y: 480`) and isolate localStorage position saves per realm.
 
-## Phase 12: Dialogue System Bug Fixes & Re-traversable Menus
-- [ ] Step 12.1: Update `DialogueBox.tsx` so spacebar does not accidentally auto-trigger choices, options render reliably, and node transitions update cleanly.
-- [ ] Step 12.2: Enrich `story.ts` with re-traversable dialogue options for Elder Oakhaven, Echo, Well, and Crates so players can re-read directions, ask about lore, or check progress anytime.
+## Phase 17: Bottom-Left MiniMap & Expandable World Map Modal
+- [ ] Step 17.1: Create `MiniMap.tsx` and `MiniMap.css` pinned to bottom-left with real-time player indicator, terrain colors, and POI markers.
+- [ ] Step 17.2: Add click/key ('M') toggle to open high-resolution Expandable World Map with region labels, quest markers, and legend.
 
-## Phase 13: Exact Wave Function Collapse (mxgmn/WaveFunctionCollapse Model) & Big Multi-Biome Map
-- [ ] Step 13.1: Implement exact WFC AC-4 constraint propagation and Shannon entropy solver in `src/game/wfc/wfcModel.ts` and `src/game/mapGenerator.ts`.
-- [ ] Step 13.2: Create large 75x75 multi-biome map (Sunken Citadel Ruins, Wildflower Meadows with Chamomile/Buttercups/Lavender, Whispering Waterways with Stone Bridges, and Forest Groves).
-- [ ] Step 13.3: Define thorough adjacency rules for all directions so tile transitions are seamless and beautiful.
-- [ ] Step 13.4: Integrate safe spawn point, POIs, boundaries, and high-performance tile culling.
+## Phase 18: Animated NPCs & Lively World Population
+- [ ] Step 18.1: Implement animated idle bobbing and player-facing orientation for NPCs (Elder Oakhaven, Echo, Silas the Hermit, Captain Joshua).
+- [ ] Step 18.2: Add ambient speech/interaction cues, animated swaying trees, falling leaf particles, and roaming wildlife (rabbits, deer, foxes, butterflies).
 
-## Phase 14: Build Verification, Browser Testing & Git Commit
-- [ ] Step 14.1: Run `bun run build` and ensure 0 TypeScript or Vite warnings/errors.
-- [ ] Step 14.2: Test via browser subagent (inspect StartScreen responsiveness, hero name input, realm tab, forward-walking animals, dialogue box options, and the big WFC world).
-- [ ] Step 14.3: Git commit with detailed message and report back.
+## Phase 19: Epic Multi-Chapter Storyline & Quests
+- [ ] Step 19.1: Expand `src/game/story.ts` with "The Chronicles of OpenGather: The Sunken Core" multi-act questline.
+- [ ] Step 19.2: Implement rich quest items (Explorer's Compass, Ancient Journal, Shimmering Water Sigil, Runic Key, Amber Core) and branch dialogues.
+
+## Phase 20: Build Verification, Stress QA & Git Commits
+- [ ] Step 20.1: Run `bun run build` and ensure 0 TypeScript or Vite warnings/errors.
+- [ ] Step 20.2: Conduct browser subagent QA testing all movement directions, dialogue, minimap, and world aesthetics.
+- [ ] Step 20.3: Git commit with comprehensive log.

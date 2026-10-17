@@ -2,35 +2,6 @@ import { Boundary } from "../class";
 import type { InteractablePOI } from "./story";
 import { WfcModel } from "./wfc/wfcCore";
 
-export type TileId = number;
-
-export const TILES = {
-  WATER_DEEP: 0,
-  WATER_SHORE_N: 1,
-  WATER_SHORE_S: 2,
-  WATER_SHORE_E: 3,
-  WATER_SHORE_W: 4,
-  WATER_SHORE_NW: 5,
-  WATER_SHORE_NE: 6,
-  WATER_SHORE_SW: 7,
-  WATER_SHORE_SE: 8,
-  STONE_BRIDGE_H: 9,
-  STONE_BRIDGE_V: 10,
-  GRASS_LUSH: 11,
-  GRASS_CHAMOMILE: 12,
-  GRASS_LAVENDER: 13,
-  GRASS_CLOVER: 14,
-  ANCIENT_ROAD: 15,
-  STONE_PATIO: 16,
-  RUNIC_SUN_SHRINE: 17,
-  MOSSY_STONE_WALL: 18,
-  ANCIENT_PILLAR: 19,
-  FOREST_TREE: 20,
-  BUSH_FOLIAGE: 21,
-} as const;
-
-export const NUM_TILES = 22;
-
 export interface ProceduralMap {
   cols: number;
   rows: number;
@@ -60,314 +31,245 @@ export interface ProceduralMap {
   ) => void;
 }
 
-// Build adjacency rules for the 4 cardinal directions (Left=0, Down=1, Right=2, Up=3)
-function buildAdjacencyRules(): number[][][] {
-  // propagator[direction][tileA] = array of allowed tileB
+// Corner socket types:
+// 0: WATER, 1: GRASS, 2: ROAD, 3: PATIO
+export const SOCKETS = {
+  WATER: 0,
+  GRASS: 1,
+  ROAD: 2,
+  PATIO: 3,
+} as const;
+
+const { WATER: W, GRASS: G, ROAD: R, PATIO: P } = SOCKETS;
+
+export interface TileDefinition {
+  name: string;
+  corners: [number, number, number, number]; // [TopLeft, TopRight, BottomRight, BottomLeft]
+  weight: number;
+  sheet: [number, number]; // [col, row] in RPGpack_sheet_2X (128x128 tiles)
+  underlay?: "grass" | "patio" | "water";
+  blocking?: boolean;
+}
+
+export const TILES: TileDefinition[] = [
+  // 0: Deep Lake Water
+  { name: "WATER_DEEP", corners: [W, W, W, W], weight: 20, sheet: [11, 1], blocking: true },
+
+  // 1-8: Shore Autotiles connecting Grass to Lake Water
+  { name: "SHORE_N", corners: [G, G, W, W], weight: 8, sheet: [11, 0] },
+  { name: "SHORE_S", corners: [W, W, G, G], weight: 8, sheet: [11, 2] },
+  { name: "SHORE_W", corners: [G, W, W, G], weight: 8, sheet: [10, 1] },
+  { name: "SHORE_E", corners: [W, G, G, W], weight: 8, sheet: [12, 1] },
+  { name: "SHORE_NW", corners: [G, G, W, G], weight: 5, sheet: [10, 0] },
+  { name: "SHORE_NE", corners: [G, G, G, W], weight: 5, sheet: [12, 0] },
+  { name: "SHORE_SW", corners: [G, W, G, G], weight: 5, sheet: [10, 2] },
+  { name: "SHORE_SE", corners: [W, G, G, G], weight: 5, sheet: [12, 2] },
+
+  // 9-10: Base Lush Meadow Grass
+  { name: "GRASS_LUSH", corners: [G, G, G, G], weight: 45, sheet: [3, 1] },
+  { name: "GRASS_VAR", corners: [G, G, G, G], weight: 25, sheet: [4, 1] },
+
+  // 11-13: Wildflower Fields (Chamomile, Lavender, Clover)
+  { name: "GRASS_CHAMOMILE", corners: [G, G, G, G], weight: 14, sheet: [1, 9], underlay: "grass" },
+  { name: "GRASS_LAVENDER", corners: [G, G, G, G], weight: 12, sheet: [2, 9], underlay: "grass" },
+  { name: "GRASS_CLOVER", corners: [G, G, G, G], weight: 16, sheet: [5, 9], underlay: "grass" },
+
+  // 14-15: Shrubbery & Forest Trees
+  { name: "BUSH", corners: [G, G, G, G], weight: 7, sheet: [0, 9], underlay: "grass" },
+  { name: "TREE_TRUNK", corners: [G, G, G, G], weight: 8, sheet: [0, 11], underlay: "grass", blocking: true },
+
+  // 16-24: Dirt / Cobblestone Highway & Transitions
+  { name: "ROAD", corners: [R, R, R, R], weight: 18, sheet: [8, 1] },
+  { name: "ROAD_N", corners: [G, G, R, R], weight: 6, sheet: [6, 0] },
+  { name: "ROAD_S", corners: [R, R, G, G], weight: 6, sheet: [6, 2] },
+  { name: "ROAD_W", corners: [G, R, R, G], weight: 6, sheet: [5, 1] },
+  { name: "ROAD_E", corners: [R, G, G, R], weight: 6, sheet: [7, 1] },
+  { name: "ROAD_NW", corners: [G, G, R, G], weight: 4, sheet: [5, 0], underlay: "grass" },
+  { name: "ROAD_NE", corners: [G, G, G, R], weight: 4, sheet: [7, 0], underlay: "grass" },
+  { name: "ROAD_SW", corners: [G, R, G, G], weight: 4, sheet: [5, 2], underlay: "grass" },
+  { name: "ROAD_SE", corners: [R, G, G, G], weight: 4, sheet: [7, 2], underlay: "grass" },
+
+  // 25-26: Wooden Footbridges over Whispering Lake
+  { name: "BRIDGE_H", corners: [W, W, W, W], weight: 4, sheet: [6, 9], underlay: "water" },
+  { name: "BRIDGE_V", corners: [W, W, W, W], weight: 4, sheet: [7, 9], underlay: "water" },
+
+  // 27-38: Sunken Citadel Courtyard (Stone Flagstones, Walls, Pillars, Altar, Edges)
+  { name: "PATIO", corners: [P, P, P, P], weight: 28, sheet: [10, 4] },
+  { name: "PATIO_N", corners: [G, G, P, P], weight: 6, sheet: [10, 4], underlay: "grass" },
+  { name: "PATIO_S", corners: [P, P, G, G], weight: 6, sheet: [10, 4], underlay: "grass" },
+  { name: "PATIO_W", corners: [G, P, P, G], weight: 6, sheet: [10, 4], underlay: "grass" },
+  { name: "PATIO_E", corners: [P, G, G, P], weight: 6, sheet: [10, 4], underlay: "grass" },
+  { name: "PATIO_NW", corners: [G, G, P, G], weight: 4, sheet: [10, 4], underlay: "grass" },
+  { name: "PATIO_NE", corners: [G, G, G, P], weight: 4, sheet: [10, 4], underlay: "grass" },
+  { name: "PATIO_SW", corners: [G, P, G, G], weight: 4, sheet: [10, 4], underlay: "grass" },
+  { name: "PATIO_SE", corners: [P, G, G, G], weight: 4, sheet: [10, 4], underlay: "grass" },
+  { name: "SUN_SHRINE", corners: [P, P, P, P], weight: 1, sheet: [10, 3], underlay: "patio" },
+  { name: "STONE_WALL", corners: [P, P, P, P], weight: 6, sheet: [11, 4], blocking: true },
+  { name: "STONE_PILLAR", corners: [P, P, P, P], weight: 4, sheet: [10, 3], underlay: "patio", blocking: true },
+];
+
+/**
+ * Builds the 4-directional propagator using Corner Socket Matching.
+ * Direction mapping:
+ * d=0: Left (-1, 0)
+ * d=1: Down (0, 1)
+ * d=2: Right (1, 0)
+ * d=3: Up (0, -1)
+ */
+function buildCornerPropagator(): number[][][] {
+  const T = TILES.length;
   const propagator: number[][][] = [];
   for (let d = 0; d < 4; d++) {
     propagator[d] = [];
-    for (let t = 0; t < NUM_TILES; t++) {
+    for (let t = 0; t < T; t++) {
       propagator[d][t] = [];
     }
   }
 
-  const allow = (tileA: number, dir: number, tileB: number) => {
-    if (!propagator[dir][tileA].includes(tileB)) {
-      propagator[dir][tileA].push(tileB);
-    }
-    const opp = WfcModel.opposite[dir];
-    if (!propagator[opp][tileB].includes(tileA)) {
-      propagator[opp][tileB].push(tileA);
-    }
-  };
-
-  const allowSymmetric = (tileA: number, tileB: number) => {
-    for (let d = 0; d < 4; d++) {
-      allow(tileA, d, tileB);
-    }
-  };
-
-  const grassTiles = [
-    TILES.GRASS_LUSH,
-    TILES.GRASS_CHAMOMILE,
-    TILES.GRASS_LAVENDER,
-    TILES.GRASS_CLOVER,
-    TILES.BUSH_FOLIAGE,
-  ];
-
-  // 1. All grass and flower variants can connect in any direction
-  for (const g1 of grassTiles) {
-    for (const g2 of grassTiles) {
-      allowSymmetric(g1, g2);
+  for (let t1 = 0; t1 < T; t1++) {
+    const c1 = TILES[t1].corners;
+    for (let t2 = 0; t2 < T; t2++) {
+      const c2 = TILES[t2].corners;
+      // d=0: Left (-1, 0). Neighbor t2 is to the Left of t1.
+      // t1.TL must match t2.TR, t1.BL must match t2.BR.
+      if (c1[0] === c2[1] && c1[3] === c2[2]) {
+        propagator[0][t1].push(t2);
+      }
+      // d=1: Down (0, 1). Neighbor t2 is Down from t1.
+      // t1.BL must match t2.TL, t1.BR must match t2.TR.
+      if (c1[3] === c2[0] && c1[2] === c2[1]) {
+        propagator[1][t1].push(t2);
+      }
+      // d=2: Right (1, 0). Neighbor t2 is to the Right of t1.
+      // t1.TR must match t2.TL, t1.BR must match t2.BL.
+      if (c1[1] === c2[0] && c1[2] === c2[3]) {
+        propagator[2][t1].push(t2);
+      }
+      // d=3: Up (0, -1). Neighbor t2 is Up from t1.
+      // t1.TL must match t2.BL, t1.TR must match t2.BR.
+      if (c1[0] === c2[3] && c1[1] === c2[2]) {
+        propagator[3][t1].push(t2);
+      }
     }
   }
-
-  // 2. Deep Water connections
-  allowSymmetric(TILES.WATER_DEEP, TILES.WATER_DEEP);
-
-  // Shore North (Land South, Water North)
-  allow(TILES.WATER_SHORE_N, 3, TILES.WATER_DEEP); // North is water
-  allow(TILES.WATER_SHORE_N, 3, TILES.WATER_SHORE_N);
-  for (const g of grassTiles) {
-    allow(TILES.WATER_SHORE_N, 1, g); // South is land
-  }
-  allow(TILES.WATER_SHORE_N, 0, TILES.WATER_SHORE_N); // West is shore N
-  allow(TILES.WATER_SHORE_N, 2, TILES.WATER_SHORE_N); // East is shore N
-  allow(TILES.WATER_SHORE_N, 0, TILES.WATER_SHORE_NW);
-  allow(TILES.WATER_SHORE_N, 2, TILES.WATER_SHORE_NE);
-
-  // Shore South (Land North, Water South)
-  allow(TILES.WATER_SHORE_S, 1, TILES.WATER_DEEP); // South is water
-  allow(TILES.WATER_SHORE_S, 1, TILES.WATER_SHORE_S);
-  for (const g of grassTiles) {
-    allow(TILES.WATER_SHORE_S, 3, g); // North is land
-  }
-  allow(TILES.WATER_SHORE_S, 0, TILES.WATER_SHORE_S);
-  allow(TILES.WATER_SHORE_S, 2, TILES.WATER_SHORE_S);
-  allow(TILES.WATER_SHORE_S, 0, TILES.WATER_SHORE_SW);
-  allow(TILES.WATER_SHORE_S, 2, TILES.WATER_SHORE_SE);
-
-  // Shore East (Land West, Water East)
-  allow(TILES.WATER_SHORE_E, 2, TILES.WATER_DEEP); // East is water
-  allow(TILES.WATER_SHORE_E, 2, TILES.WATER_SHORE_E);
-  for (const g of grassTiles) {
-    allow(TILES.WATER_SHORE_E, 0, g); // West is land
-  }
-  allow(TILES.WATER_SHORE_E, 1, TILES.WATER_SHORE_E);
-  allow(TILES.WATER_SHORE_E, 3, TILES.WATER_SHORE_E);
-
-  // Shore West (Land East, Water West)
-  allow(TILES.WATER_SHORE_W, 0, TILES.WATER_DEEP); // West is water
-  allow(TILES.WATER_SHORE_W, 0, TILES.WATER_SHORE_W);
-  for (const g of grassTiles) {
-    allow(TILES.WATER_SHORE_W, 2, g); // East is land
-  }
-  allow(TILES.WATER_SHORE_W, 1, TILES.WATER_SHORE_W);
-  allow(TILES.WATER_SHORE_W, 3, TILES.WATER_SHORE_W);
-
-  // Corner Shores
-  allow(TILES.WATER_SHORE_NW, 3, TILES.WATER_DEEP);
-  allow(TILES.WATER_SHORE_NW, 0, TILES.WATER_DEEP);
-  allow(TILES.WATER_SHORE_NE, 3, TILES.WATER_DEEP);
-  allow(TILES.WATER_SHORE_NE, 2, TILES.WATER_DEEP);
-  allow(TILES.WATER_SHORE_SW, 1, TILES.WATER_DEEP);
-  allow(TILES.WATER_SHORE_SW, 0, TILES.WATER_DEEP);
-  allow(TILES.WATER_SHORE_SE, 1, TILES.WATER_DEEP);
-  allow(TILES.WATER_SHORE_SE, 2, TILES.WATER_DEEP);
-
-  for (const g of grassTiles) {
-    allow(TILES.WATER_SHORE_NW, 1, g);
-    allow(TILES.WATER_SHORE_NW, 2, g);
-    allow(TILES.WATER_SHORE_NE, 1, g);
-    allow(TILES.WATER_SHORE_NE, 0, g);
-    allow(TILES.WATER_SHORE_SW, 3, g);
-    allow(TILES.WATER_SHORE_SW, 2, g);
-    allow(TILES.WATER_SHORE_SE, 3, g);
-    allow(TILES.WATER_SHORE_SE, 0, g);
-  }
-
-  // 3. Bridges crossing water
-  // Horizontal bridge: Water North and South, Bridge/Land East and West
-  allow(TILES.STONE_BRIDGE_H, 3, TILES.WATER_DEEP);
-  allow(TILES.STONE_BRIDGE_H, 1, TILES.WATER_DEEP);
-  allow(TILES.STONE_BRIDGE_H, 0, TILES.STONE_BRIDGE_H);
-  allow(TILES.STONE_BRIDGE_H, 2, TILES.STONE_BRIDGE_H);
-  allow(TILES.STONE_BRIDGE_H, 0, TILES.ANCIENT_ROAD);
-  allow(TILES.STONE_BRIDGE_H, 2, TILES.ANCIENT_ROAD);
-  for (const g of grassTiles) {
-    allow(TILES.STONE_BRIDGE_H, 0, g);
-    allow(TILES.STONE_BRIDGE_H, 2, g);
-  }
-
-  // Vertical bridge
-  allow(TILES.STONE_BRIDGE_V, 0, TILES.WATER_DEEP);
-  allow(TILES.STONE_BRIDGE_V, 2, TILES.WATER_DEEP);
-  allow(TILES.STONE_BRIDGE_V, 1, TILES.STONE_BRIDGE_V);
-  allow(TILES.STONE_BRIDGE_V, 3, TILES.STONE_BRIDGE_V);
-  allow(TILES.STONE_BRIDGE_V, 1, TILES.ANCIENT_ROAD);
-  allow(TILES.STONE_BRIDGE_V, 3, TILES.ANCIENT_ROAD);
-  for (const g of grassTiles) {
-    allow(TILES.STONE_BRIDGE_V, 1, g);
-    allow(TILES.STONE_BRIDGE_V, 3, g);
-  }
-
-  // 4. Ancient Road connections
-  allowSymmetric(TILES.ANCIENT_ROAD, TILES.ANCIENT_ROAD);
-  for (const g of grassTiles) {
-    allowSymmetric(TILES.ANCIENT_ROAD, g);
-  }
-  allowSymmetric(TILES.ANCIENT_ROAD, TILES.STONE_PATIO);
-
-  // 5. Sunken Citadel Courtyard & Ruins
-  allowSymmetric(TILES.STONE_PATIO, TILES.STONE_PATIO);
-  for (const g of grassTiles) {
-    allowSymmetric(TILES.STONE_PATIO, g);
-  }
-  allowSymmetric(TILES.STONE_PATIO, TILES.RUNIC_SUN_SHRINE);
-  allowSymmetric(TILES.RUNIC_SUN_SHRINE, TILES.RUNIC_SUN_SHRINE);
-
-  // Walls and Pillars sit on Stone Patio or Grass
-  allowSymmetric(TILES.MOSSY_STONE_WALL, TILES.STONE_PATIO);
-  allowSymmetric(TILES.MOSSY_STONE_WALL, TILES.MOSSY_STONE_WALL);
-  allowSymmetric(TILES.ANCIENT_PILLAR, TILES.STONE_PATIO);
-  allowSymmetric(TILES.ANCIENT_PILLAR, TILES.ANCIENT_ROAD);
-  for (const g of grassTiles) {
-    allowSymmetric(TILES.MOSSY_STONE_WALL, g);
-    allowSymmetric(TILES.ANCIENT_PILLAR, g);
-  }
-
-  // 6. Forest Trees in meadow & forest groves
-  for (const g of grassTiles) {
-    allowSymmetric(TILES.FOREST_TREE, g);
-  }
-  allowSymmetric(TILES.FOREST_TREE, TILES.FOREST_TREE);
 
   return propagator;
 }
 
-// Generate the big multi-biome WFC ancient adventure world
+/**
+ * Generates the expansive 64x64 multi-biome procedural map (4096 x 4096 pixels)
+ * using the exact WaveFunctionCollapse algorithm (Model.cs with AC-4 constraint propagation).
+ */
 export function generateWhisperingRuinsMap(
   ctx: CanvasRenderingContext2D,
-  initialSeed = 101,
+  seed = 42,
 ): ProceduralMap {
   const cols = 64;
   const rows = 64;
   const tileSize = 64;
   const width = cols * tileSize;
   const height = rows * tileSize;
+  const numTiles = TILES.length;
 
-  // Tile Weights
-  const weights = new Array(NUM_TILES).fill(1.0);
-  weights[TILES.GRASS_LUSH] = 25.0;
-  weights[TILES.GRASS_CHAMOMILE] = 7.0;
-  weights[TILES.GRASS_LAVENDER] = 6.0;
-  weights[TILES.GRASS_CLOVER] = 8.0;
-  weights[TILES.BUSH_FOLIAGE] = 3.0;
-  weights[TILES.WATER_DEEP] = 12.0;
-  weights[TILES.WATER_SHORE_N] = 3.0;
-  weights[TILES.WATER_SHORE_S] = 3.0;
-  weights[TILES.WATER_SHORE_E] = 3.0;
-  weights[TILES.WATER_SHORE_W] = 3.0;
-  weights[TILES.WATER_SHORE_NW] = 1.5;
-  weights[TILES.WATER_SHORE_NE] = 1.5;
-  weights[TILES.WATER_SHORE_SW] = 1.5;
-  weights[TILES.WATER_SHORE_SE] = 1.5;
-  weights[TILES.STONE_BRIDGE_H] = 1.2;
-  weights[TILES.STONE_BRIDGE_V] = 1.2;
-  weights[TILES.ANCIENT_ROAD] = 9.0;
-  weights[TILES.STONE_PATIO] = 14.0;
-  weights[TILES.RUNIC_SUN_SHRINE] = 2.0;
-  weights[TILES.MOSSY_STONE_WALL] = 4.0;
-  weights[TILES.ANCIENT_PILLAR] = 3.0;
-  weights[TILES.FOREST_TREE] = 5.0;
+  const weights = TILES.map((t) => t.weight);
+  const propagator = buildCornerPropagator();
 
-  const propagator = buildAdjacencyRules();
-
-  // Instantiate the exact Maxim Gumin WfcModel
-  const model = new WfcModel(cols, rows, NUM_TILES, weights, propagator, false, "Entropy");
-
-  // Attempt collapse with seed perturbations if contradiction occurs
   let success = false;
-  let attempt = 0;
-  let currentSeed = initialSeed;
+  let currentSeed = seed;
+  let model: WfcModel = new WfcModel(cols, rows, numTiles, weights, propagator, false, "Entropy");
 
-  while (!success && attempt < 8) {
-    attempt++;
+  const waterIndices = new Set<number>();
+  const patioIndices = new Set<number>();
+  const roadIndices = new Set<number>();
+
+  TILES.forEach((t, i) => {
+    if (t.corners.includes(W)) waterIndices.add(i);
+    if (t.corners.includes(P)) patioIndices.add(i);
+    if (t.corners.includes(R)) roadIndices.add(i);
+  });
+
+  for (let attempt = 0; attempt < 8 && !success; attempt++) {
+    model = new WfcModel(cols, rows, numTiles, weights, propagator, false, "Entropy");
     model.clear();
 
-    // ── Macro Biome Domain Pre-Conditioning ──
-    // 1. Surrounding perimeter deep water moat / chasm (rows 0-2, rows 61-63, cols 0-2, cols 61-63)
+    // ── Multi-Biome Domain Conditioning ──
+
+    // 1. Surrounding perimeter deep water moat
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (r <= 1 || r >= rows - 2 || c <= 1 || c >= cols - 2) {
           const idx = c + r * cols;
-          for (let t = 0; t < NUM_TILES; t++) {
-            if (t !== TILES.WATER_DEEP) model.ban(idx, t);
+          for (let t = 0; t < numTiles; t++) {
+            if (!waterIndices.has(t)) model.ban(idx, t);
           }
         }
       }
     }
 
-    // 2. Eastern Whispering Lake (Rows 16-44, Cols 46-58)
-    for (let r = 18; r < 42; r++) {
-      for (let c = 48; c < 56; c++) {
+    // 2. Eastern Whispering Lake (Oval Water Reservoir: Rows 20-40, Cols 46-58)
+    for (let r = 20; r < 40; r++) {
+      for (let c = 46; c < 58; c++) {
         const dist = Math.hypot((c - 52) * 1.3, r - 30);
-        if (dist < 8.5) {
+        if (dist < 5.5) {
           const idx = c + r * cols;
-          for (let t = 0; t < NUM_TILES; t++) {
-            if (t !== TILES.WATER_DEEP) model.ban(idx, t);
+          for (let t = 0; t < numTiles; t++) {
+            if (!waterIndices.has(t)) model.ban(idx, t);
           }
         }
       }
     }
 
-    // 3. Northern Sunken Citadel Courtyard (Rows 8 to 22, Cols 22 to 42)
-    for (let r = 10; r <= 20; r++) {
+    // 3. Northern Sunken Citadel Plaza (Rows 10-22, Cols 24-40)
+    for (let r = 10; r <= 22; r++) {
       for (let c = 24; c <= 40; c++) {
         const idx = c + r * cols;
-        for (let t = 0; t < NUM_TILES; t++) {
-          if (
-            t !== TILES.STONE_PATIO &&
-            t !== TILES.RUNIC_SUN_SHRINE &&
-            t !== TILES.ANCIENT_PILLAR &&
-            t !== TILES.MOSSY_STONE_WALL
-          ) {
-            model.ban(idx, t);
-          }
+        for (let t = 0; t < numTiles; t++) {
+          if (!patioIndices.has(t)) model.ban(idx, t);
         }
       }
     }
 
-    // Central Sun Shrine in Courtyard (Row 15, Col 32)
-    const shrineIdx = 32 + 15 * cols;
-    for (let t = 0; t < NUM_TILES; t++) {
-      if (t !== TILES.RUNIC_SUN_SHRINE) model.ban(shrineIdx, t);
-    }
-
-    // 4. Ancient Stone Highway connecting Gateway -> Courtyard
-    for (let r = 21; r <= 56; r++) {
+    // 4. Southern Ancient Highway (Grand Road from Row 24 down to Row 56, Cols 31-33)
+    for (let r = 24; r <= 56; r++) {
       for (let c = 31; c <= 33; c++) {
         const idx = c + r * cols;
-        for (let t = 0; t < NUM_TILES; t++) {
-          if (t !== TILES.ANCIENT_ROAD) model.ban(idx, t);
+        for (let t = 0; t < numTiles; t++) {
+          if (!roadIndices.has(t)) model.ban(idx, t);
         }
       }
     }
 
-    // Propagate macro constraints before running collapse
-    const initProp = model.propagate();
-    if (initProp) {
-      success = model.run(currentSeed, 60000);
+    // 5. Propagate constraints and solve wave function
+    const initOk = model.propagate();
+    if (initOk) {
+      success = model.run(currentSeed, -1);
     }
 
     if (!success) {
-      currentSeed = (currentSeed + 7919) | 0;
+      currentSeed = (currentSeed + 9973) | 0;
     }
   }
 
-  // Build final 2D grid from observed results
+  // Construct tile grid from WFC observed state (fallback to Lush Grass if unobserved)
   const grid: number[][] = [];
   for (let r = 0; r < rows; r++) {
     grid[r] = [];
     for (let c = 0; c < cols; c++) {
       const idx = c + r * cols;
-      const tile = model.observed[idx] >= 0 ? model.observed[idx] : TILES.GRASS_LUSH;
-      grid[r][c] = tile;
+      const obs = model.observed[idx];
+      grid[r][c] = obs >= 0 && obs < numTiles ? obs : 9; // GRASS_LUSH
     }
   }
 
-  // Build Boundaries for all blocking tiles
-  const boundaries: Boundary[] = [];
-  const blockingTiles = new Set<number>([
-    TILES.WATER_DEEP,
-    TILES.MOSSY_STONE_WALL,
-    TILES.ANCIENT_PILLAR,
-    TILES.FOREST_TREE,
-  ]);
+  // Ensure central Sun Shrine altar is present in courtyard
+  grid[15][32] = 36; // SUN_SHRINE
 
+  // Build physical Boundaries for solid colliders (Water, Stone Walls, Stone Pillars, Tree Trunks)
+  const boundaries: Boundary[] = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (blockingTiles.has(grid[r][c])) {
+      const tileIndex = grid[r][c];
+      if (TILES[tileIndex]?.blocking) {
         boundaries.push(
           new Boundary({
             ctx,
@@ -381,19 +283,19 @@ export function generateWhisperingRuinsMap(
     }
   }
 
-  // Safe Spawn Point (on the southern ancient road)
+  // Grand entrance spawn point (Row 54 on the Southern Highway)
   const spawnPoint = {
     x: 32 * tileSize + tileSize / 2 - 24,
-    y: 52 * tileSize,
+    y: 54 * tileSize,
   };
 
-  // Interactive POIs positioned in the Big WFC Ruins World
+  // Interactive POIs placed in the world
   const pois: InteractablePOI[] = [
     {
       id: "elder_oakhaven",
       name: "Elder Oakhaven",
       type: "npc",
-      position: { x: 32 * tileSize + 32, y: 14 * tileSize + 32 },
+      position: { x: 32 * tileSize + 32, y: 15 * tileSize + 32 },
       radius: 72,
       icon: "🧙‍♂️",
       prompt: "Consult Elder at Sun Shrine",
@@ -409,35 +311,36 @@ export function generateWhisperingRuinsMap(
       id: "echo_companion",
       name: "Echo",
       type: "npc",
-      position: { x: 30 * tileSize + 20, y: 48 * tileSize + 32 },
-      radius: 65,
-      icon: "👋",
-      prompt: "Greet Echo on Highway",
+      position: { x: 36 * tileSize + 32, y: 14 * tileSize + 32 },
+      radius: 64,
+      icon: "🧝‍♀️",
+      prompt: "Speak with Echo",
       spriteFolder: "00-classic",
       initialNodeId: (state) => {
-        if (state.flags.talkedToEcho) return "echo_banter";
-        return "echo_intro";
+        if (state.flags.questCompleted) return "echo_banter";
+        if (state.flags.hasRune) return "echo_excited";
+        return "echo_greeting";
       },
     },
     {
-      id: "ancient_well",
-      name: "Well of Whispers",
+      id: "ancient_sun_altar",
+      name: "Sacred Sun Altar",
       type: "object",
-      position: { x: 44 * tileSize + 32, y: 28 * tileSize + 32 },
-      radius: 70,
-      icon: "💧",
-      prompt: "Examine Lake Well",
-      initialNodeId: (state) => {
-        if (state.flags.hasRune) return "well_empty";
-        return "well_intro";
-      },
-    },
-    {
-      id: "cottage_crates",
-      name: "Ruins Relic Chest",
-      type: "object",
-      position: { x: 26 * tileSize + 32, y: 16 * tileSize + 32 },
+      position: { x: 32 * tileSize + 32, y: 15 * tileSize + 32 },
       radius: 60,
+      icon: "☀️",
+      prompt: "Examine Ancient Runic Altar",
+      initialNodeId: (state) => {
+        if (state.flags.hasRune) return "well_has_rune";
+        return "well_empty";
+      },
+    },
+    {
+      id: "relic_chest",
+      name: "Relic Chest",
+      type: "object",
+      position: { x: 26 * tileSize + 32, y: 14 * tileSize + 32 },
+      radius: 54,
       icon: "📦",
       prompt: "Search Ancient Relic Chest",
       initialNodeId: (state) => {
@@ -445,9 +348,25 @@ export function generateWhisperingRuinsMap(
         return "crates_intro";
       },
     },
+    {
+      id: "lake_lookout",
+      name: "Whispering Lake Pier",
+      type: "object",
+      position: { x: 51 * tileSize + 32, y: 29 * tileSize + 32 },
+      radius: 58,
+      icon: "🌊",
+      prompt: "Gaze into the Whispering Depths",
+      initialNodeId: (state) => {
+        if (state.flags.hasRune) return "well_has_rune";
+        return "well_empty";
+      },
+    },
   ];
 
-  // High-performance viewport culling renderer
+  // Tile size on Kenney RPGpack_sheet_2X.png is 128x128 pixels
+  const S_TILE = 128;
+
+  // Viewport culling pixel-art renderer using real Kenney RPGpack spritesheet
   const draw = (
     c: CanvasRenderingContext2D,
     tileset: HTMLImageElement | null,
@@ -462,215 +381,67 @@ export function generateWhisperingRuinsMap(
     const minRow = Math.max(0, Math.floor((camera.y - viewH / (2 * zoom)) / tileSize) - 1);
     const maxRow = Math.min(rows - 1, Math.ceil((camera.y + viewH / (2 * zoom)) / tileSize) + 1);
 
+    const hasTileset = tileset && tileset.complete && tileset.naturalWidth > 0;
+
+    c.imageSmoothingEnabled = false;
+
     for (let r = minRow; r <= maxRow; r++) {
       for (let col = minCol; col <= maxCol; col++) {
-        const tile = grid[r][col];
+        const tileIndex = grid[r][col];
+        const tDef = TILES[tileIndex] || TILES[9];
         const px = col * tileSize;
         const py = r * tileSize;
+        // 0.5px subpixel overlap prevents canvas rounding seam lines between tiles
+        const drawSize = tileSize + 0.5;
 
-        switch (tile) {
-          case TILES.WATER_DEEP: {
-            const wave = Math.sin(animTime * 1.8 + col * 0.4 + r * 0.3) * 5;
-            c.fillStyle = "#1e3a5f";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "rgba(56, 189, 248, 0.22)";
-            c.fillRect(px + 8 + wave, py + 18, 30, 2.5);
-            c.fillRect(px + 18 - wave, py + 42, 24, 2);
-            break;
+        if (hasTileset) {
+          // 1. Draw underlay (grass, patio, or water) for transparent sprites
+          if (tDef.underlay === "grass") {
+            // Draw lush grass underneath
+            c.drawImage(tileset, 3 * S_TILE + 0.5, 1 * S_TILE + 0.5, S_TILE - 1, S_TILE - 1, px, py, drawSize, drawSize);
+          } else if (tDef.underlay === "patio") {
+            // Draw stone flagstone underneath
+            c.drawImage(tileset, 10 * S_TILE + 0.5, 4 * S_TILE + 0.5, S_TILE - 1, S_TILE - 1, px, py, drawSize, drawSize);
+          } else if (tDef.underlay === "water") {
+            // Draw deep water underneath
+            c.drawImage(tileset, 11 * S_TILE + 0.5, 1 * S_TILE + 0.5, S_TILE - 1, S_TILE - 1, px, py, drawSize, drawSize);
           }
 
-          case TILES.WATER_SHORE_N:
-          case TILES.WATER_SHORE_S:
-          case TILES.WATER_SHORE_E:
-          case TILES.WATER_SHORE_W:
-          case TILES.WATER_SHORE_NW:
-          case TILES.WATER_SHORE_NE:
-          case TILES.WATER_SHORE_SW:
-          case TILES.WATER_SHORE_SE: {
-            c.fillStyle = "#2d527a";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#3e6a3d";
-            c.fillRect(px + 4, py + 4, tileSize - 8, tileSize - 8);
-            c.fillStyle = "#a8a29e";
-            c.fillRect(px, py + tileSize - 6, tileSize, 6);
-            break;
+          // 2. Draw actual tile graphic from spritesheet (0.5px source inset prevents bleed)
+          const [sx, sy] = tDef.sheet;
+          c.drawImage(tileset, sx * S_TILE + 0.5, sy * S_TILE + 0.5, S_TILE - 1, S_TILE - 1, px, py, drawSize, drawSize);
+
+          // 3. Shimmer wave on water tiles
+          if (tileIndex === 0) {
+            const wave = Math.sin(animTime * 2.2 + col * 0.7 + r * 0.5) * 4;
+            c.fillStyle = "rgba(186, 230, 253, 0.2)";
+            c.fillRect(px + 8 + wave, py + 22, 28, 2.5);
+            c.fillRect(px + 24 - wave, py + 44, 20, 2);
           }
 
-          case TILES.STONE_BRIDGE_H:
-            c.fillStyle = "#1e3a5f";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#64748b";
-            c.fillRect(px, py + 12, tileSize, tileSize - 24);
-            c.strokeStyle = "#475569";
-            c.lineWidth = 2;
-            c.strokeRect(px, py + 12, tileSize, tileSize - 24);
-            c.fillStyle = "#94a3b8";
-            c.fillRect(px + 6, py + 16, tileSize - 12, 4);
-            break;
-
-          case TILES.STONE_BRIDGE_V:
-            c.fillStyle = "#1e3a5f";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#64748b";
-            c.fillRect(px + 12, py, tileSize - 24, tileSize);
-            c.strokeStyle = "#475569";
-            c.lineWidth = 2;
-            c.strokeRect(px + 12, py, tileSize - 24, tileSize);
-            break;
-
-          case TILES.GRASS_LUSH:
-            c.fillStyle = "#3e6a3d";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#4a7d48";
-            c.fillRect(px + 10, py + 14, 4, 7);
-            c.fillRect(px + 38, py + 42, 4, 8);
-            break;
-
-          case TILES.GRASS_CHAMOMILE:
-            c.fillStyle = "#417240";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#fef08a";
-            c.beginPath();
-            c.arc(px + 18, py + 22, 4, 0, Math.PI * 2);
-            c.arc(px + 42, py + 38, 3.5, 0, Math.PI * 2);
-            c.fill();
-            c.fillStyle = "#f97316";
-            c.beginPath();
-            c.arc(px + 18, py + 22, 1.5, 0, Math.PI * 2);
-            c.arc(px + 42, py + 38, 1.2, 0, Math.PI * 2);
-            c.fill();
-            break;
-
-          case TILES.GRASS_LAVENDER:
-            c.fillStyle = "#3c683b";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#c084fc";
-            c.beginPath();
-            c.arc(px + 16, py + 20, 3.5, 0, Math.PI * 2);
-            c.arc(px + 40, py + 44, 3.5, 0, Math.PI * 2);
-            c.arc(px + 30, py + 16, 3, 0, Math.PI * 2);
-            c.fill();
-            c.fillStyle = "#7e22ce";
-            c.beginPath();
-            c.arc(px + 16, py + 20, 1.2, 0, Math.PI * 2);
-            c.arc(px + 40, py + 44, 1.2, 0, Math.PI * 2);
-            c.fill();
-            break;
-
-          case TILES.GRASS_CLOVER:
-            c.fillStyle = "#376236";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#86efac";
-            c.beginPath();
-            c.arc(px + 14, py + 18, 3, 0, Math.PI * 2);
-            c.arc(px + 44, py + 46, 3, 0, Math.PI * 2);
-            c.fill();
-            break;
-
-          case TILES.ANCIENT_ROAD:
-            c.fillStyle = "#52525b";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.strokeStyle = "#3f3f46";
-            c.lineWidth = 1.5;
-            c.strokeRect(px + 4, py + 4, tileSize - 8, tileSize - 8);
-            c.fillStyle = "#71717a";
-            c.fillRect(px + 8, py + 8, 20, 20);
-            c.fillRect(px + 32, py + 32, 22, 22);
-            break;
-
-          case TILES.STONE_PATIO:
-            c.fillStyle = "#475569";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.strokeStyle = "#334155";
-            c.lineWidth = 1;
-            c.strokeRect(px, py, tileSize, tileSize);
-            c.fillStyle = "rgba(74, 222, 128, 0.22)";
-            c.fillRect(px + 4, py + 4, 8, 4);
-            break;
-
-          case TILES.RUNIC_SUN_SHRINE: {
-            c.fillStyle = "#334155";
-            c.fillRect(px, py, tileSize, tileSize);
-            const pulse = 0.5 + Math.sin(animTime * 2.5) * 0.35;
+          // 4. Glowing Sun Shrine Altar pulsation
+          if (tileIndex === 36) {
+            const pulse = 0.5 + Math.sin(animTime * 3) * 0.4;
             c.save();
             c.strokeStyle = `rgba(245, 158, 11, ${pulse})`;
-            c.lineWidth = 2.5;
+            c.lineWidth = 3;
             c.beginPath();
-            c.arc(px + tileSize / 2, py + tileSize / 2, 26, 0, Math.PI * 2);
+            c.arc(px + tileSize / 2, py + tileSize / 2, 24, 0, Math.PI * 2);
             c.stroke();
-            c.fillStyle = `rgba(245, 158, 11, ${pulse * 0.2})`;
+            c.fillStyle = `rgba(245, 158, 11, ${pulse * 0.25})`;
             c.fill();
             c.restore();
-            break;
           }
-
-          case TILES.MOSSY_STONE_WALL:
-            c.fillStyle = "#334155";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#64748b";
-            c.fillRect(px + 4, py + 4, tileSize - 8, tileSize - 12);
-            c.fillStyle = "#94a3b8";
-            c.fillRect(px + 2, py + 2, tileSize - 4, 12);
-            c.fillStyle = "#22c55e";
-            c.fillRect(px + 8, py + 24, 6, 16);
-            break;
-
-          case TILES.ANCIENT_PILLAR:
-            c.fillStyle = "#475569";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#cbd5e1";
-            c.beginPath();
-            c.arc(px + tileSize / 2, py + tileSize / 2, 20, 0, Math.PI * 2);
-            c.fill();
-            c.strokeStyle = "#475569";
-            c.lineWidth = 3;
-            c.stroke();
-            c.fillStyle = "#f59e0b";
-            c.beginPath();
-            c.arc(px + tileSize / 2, py + tileSize / 2, 6, 0, Math.PI * 2);
-            c.fill();
-            break;
-
-          case TILES.FOREST_TREE:
-            c.fillStyle = "#376236";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#451a03";
-            c.fillRect(px + 24, py + 24, 16, 28);
-            c.fillStyle = "#15803d";
-            c.beginPath();
-            c.arc(px + 32, py + 24, 26, 0, Math.PI * 2);
-            c.fill();
-            break;
-
-          case TILES.BUSH_FOLIAGE:
-            c.fillStyle = "#3e6a3d";
-            c.fillRect(px, py, tileSize, tileSize);
-            c.fillStyle = "#16a34a";
-            c.beginPath();
-            c.arc(px + 32, py + 34, 18, 0, Math.PI * 2);
-            c.fill();
-            c.fillStyle = "#ef4444";
-            c.beginPath();
-            c.arc(px + 24, py + 32, 2.5, 0, Math.PI * 2);
-            c.arc(px + 38, py + 36, 2.5, 0, Math.PI * 2);
-            c.fill();
-            break;
-        }
-
-        // Overlay tileset graphics if loaded
-        if (tileset && tileset.complete && tileset.naturalWidth > 0) {
-          const sTile = 128;
-          if (tile === TILES.STONE_PATIO) {
-            c.drawImage(tileset, 0 * sTile, 3 * sTile, sTile, sTile, px, py, tileSize, tileSize);
-          } else if (tile === TILES.ANCIENT_PILLAR) {
-            c.drawImage(tileset, 6 * sTile, 7 * sTile, sTile, sTile, px, py, tileSize, tileSize);
-          }
+        } else {
+          // Fallback if tileset is loading
+          c.fillStyle = tDef.corners[0] === W ? "#1e3a5f" : tDef.corners[0] === P ? "#475569" : "#3e6a3d";
+          c.fillRect(px, py, tileSize, tileSize);
         }
       }
     }
   };
 
-  // Foreground effects
+  // Foreground environmental overlay (grand archway at South Gateway Row 22, Cols 31-33)
   const drawForeground = (
     c: CanvasRenderingContext2D,
     _camera: { x: number; y: number },
@@ -679,20 +450,20 @@ export function generateWhisperingRuinsMap(
     _zoom: number,
     _animTime: number,
   ) => {
-    // Grand South Archway Lintel across ancient road (Row 46, Cols 31 to 33)
     const archX = 31 * tileSize;
-    const archY = 46 * tileSize - 20;
+    const archY = 22 * tileSize - 24;
+
     c.save();
-    c.fillStyle = "#94a3b8";
-    c.fillRect(archX - 10, archY, 3 * tileSize + 20, 26);
-    c.strokeStyle = "#475569";
-    c.lineWidth = 2;
-    c.strokeRect(archX - 10, archY, 3 * tileSize + 20, 26);
+    c.fillStyle = "#334155";
+    c.fillRect(archX - 12, archY, 3 * tileSize + 24, 30);
+    c.strokeStyle = "#64748b";
+    c.lineWidth = 2.5;
+    c.strokeRect(archX - 12, archY, 3 * tileSize + 24, 30);
 
     c.font = "bold 11px monospace";
-    c.fillStyle = "rgba(245, 158, 11, 0.9)";
+    c.fillStyle = "#f59e0b";
     c.textAlign = "center";
-    c.fillText("ᚠ ᚢ ᚦ ᚨ ᚱ ᚲ — SUNKEN CITADEL", archX + (3 * tileSize) / 2, archY + 17);
+    c.fillText("⚡ SUNKEN CITADEL — SACRED REALM ⚡", archX + (3 * tileSize) / 2, archY + 19);
     c.restore();
   };
 

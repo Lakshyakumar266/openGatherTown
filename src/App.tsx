@@ -106,28 +106,29 @@ function clearSession() {
   }
 }
 
-function savePlayerPos(x: number, y: number) {
+function savePlayerPos(x: number, y: number, mapType: MapType = "new") {
   try {
-    localStorage.setItem(POSITION_KEY, JSON.stringify({ x, y }));
+    localStorage.setItem(`${POSITION_KEY}_${mapType}`, JSON.stringify({ x, y }));
   } catch {
     /* ignore */
   }
 }
 
-function loadPlayerPos(): Point | null {
+function loadPlayerPos(mapType: MapType = "new"): Point | null {
   try {
-    const raw = localStorage.getItem(POSITION_KEY);
+    const raw = localStorage.getItem(`${POSITION_KEY}_${mapType}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
+    const maxBound = mapType === "new" ? 4096 : 2600;
     if (
       typeof parsed?.x === "number" &&
       typeof parsed?.y === "number" &&
       !isNaN(parsed.x) &&
       !isNaN(parsed.y) &&
-      parsed.x >= 100 &&
-      parsed.x <= 2600 &&
+      parsed.x >= 0 &&
+      parsed.x <= maxBound &&
       parsed.y >= 0 &&
-      parsed.y <= 2600
+      parsed.y <= maxBound
     ) {
       return parsed;
     }
@@ -387,7 +388,7 @@ function App() {
           });
         }
 
-        const savedPos = loadPlayerPos();
+        const savedPos = loadPlayerPos(activeMapType);
         const initialX =
           savedPos?.x ??
           (activeMapType === "new" ? proceduralMap!.spawnPoint.x : SPAWN_WORLD_X);
@@ -492,16 +493,22 @@ function App() {
         let clickPath: Point[] = [];
         let currentZoom = settingsRef.current.zoomLevel || 1.0;
 
-        const isMovementKey = (v: string): v is MovementKey =>
-          v === "w" || v === "a" || v === "s" || v === "d";
+        const normalizeMovementKey = (rawKey: string): MovementKey | null => {
+          const k = rawKey.toLowerCase();
+          if (k === "w" || k === "arrowup") return "w";
+          if (k === "a" || k === "arrowleft") return "a";
+          if (k === "s" || k === "arrowdown") return "s";
+          if (k === "d" || k === "arrowright") return "d";
+          return null;
+        };
 
         const handleKeyDown = (e: KeyboardEvent) => {
           if (activeDialogueRef.current) return; // Freeze movement during dialogue
 
           const key = e.key.toLowerCase();
 
-          // Press E to interact with closest POI
-          if (key === "e" && nearestPOIRef.current) {
+          // Press E or Space to interact with closest POI
+          if ((key === "e" || key === " ") && nearestPOIRef.current) {
             e.preventDefault();
             handleStartInteract(nearestPOIRef.current);
             return;
@@ -517,19 +524,22 @@ function App() {
             currentZoom = Math.max(0.75, currentZoom - 0.05);
             return;
           }
-          if (!isMovementKey(key)) return;
+
+          const moveKey = normalizeMovementKey(e.key);
+          if (!moveKey) return;
+          e.preventDefault();
           clickPath = [];
-          keys[key] = true;
-          const idx = keyOrder.indexOf(key);
+          keys[moveKey] = true;
+          const idx = keyOrder.indexOf(moveKey);
           if (idx !== -1) keyOrder.splice(idx, 1);
-          keyOrder.push(key);
+          keyOrder.push(moveKey);
         };
 
         const handleKeyUp = (e: KeyboardEvent) => {
-          const key = e.key.toLowerCase();
-          if (!isMovementKey(key)) return;
-          keys[key] = false;
-          const idx = keyOrder.indexOf(key);
+          const moveKey = normalizeMovementKey(e.key);
+          if (!moveKey) return;
+          keys[moveKey] = false;
+          const idx = keyOrder.indexOf(moveKey);
           if (idx !== -1) keyOrder.splice(idx, 1);
         };
 
@@ -690,6 +700,7 @@ function App() {
           ctx.translate(canvas.width / 2, canvas.height / 2);
           ctx.scale(currentZoom, currentZoom);
           ctx.translate(-camera.position.x, -camera.position.y);
+          ctx.imageSmoothingEnabled = false;
 
           // 1. Draw Ground & Base Layer
           if (activeMapType === "new" && proceduralMap) {
@@ -914,10 +925,10 @@ function App() {
     if (playerConfig) saveSession(playerConfig);
     if (getPlayerPosRef.current) {
       const pos = getPlayerPosRef.current();
-      savePlayerPos(pos.x, pos.y);
+      savePlayerPos(pos.x, pos.y, settings.selectedMap);
     }
     saveStoryState(storyStateRef.current);
-  }, [playerConfig]);
+  }, [playerConfig, settings.selectedMap]);
 
   const handleEnterWorld = useCallback(
     (config: PlayerConfig, mapType?: MapType) => {
