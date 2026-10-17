@@ -10,7 +10,7 @@ export type AmbientParticle = {
   alpha: number;
   life: number;
   maxLife: number;
-  type: "firefly" | "leaf" | "dust" | "bubble";
+  type: "firefly" | "leaf" | "dust" | "bubble" | "butterfly";
   wobble: number;
   wobbleSpeed: number;
 };
@@ -93,6 +93,29 @@ function spawnDust(sys: AmbientSystem): AmbientParticle {
   };
 }
 
+const BUTTERFLY_COLORS = ["#f472b6", "#c084fc", "#38bdf8", "#fbbf24", "#34d399"];
+
+function spawnButterfly(sys: AmbientSystem): AmbientParticle {
+  const x = sys.mapOriginX + Math.random() * sys.mapWidth;
+  const y = sys.mapOriginY + Math.random() * sys.mapHeight;
+  const life = 240 + Math.floor(Math.random() * 200);
+  return {
+    position: { x, y },
+    velocity: {
+      x: (Math.random() - 0.5) * 0.7,
+      y: (Math.random() - 0.5) * 0.5,
+    },
+    radius: 3.5 + Math.random() * 1.5,
+    color: BUTTERFLY_COLORS[Math.floor(Math.random() * BUTTERFLY_COLORS.length)],
+    alpha: 0.85,
+    life,
+    maxLife: life,
+    type: "butterfly",
+    wobble: Math.random() * Math.PI * 2,
+    wobbleSpeed: 0.06 + Math.random() * 0.04,
+  };
+}
+
 // ─── Public API ────────────────────────────────────────────────────────────
 
 export function createAmbientSystem(
@@ -110,10 +133,11 @@ export function createAmbientSystem(
     mapOriginY,
   };
 
-  // Pre-populate with some ambient life
-  for (let i = 0; i < 40; i++) sys.particles.push(spawnFirefly(sys));
+  // Pre-populate with diverse ambient life
+  for (let i = 0; i < 35; i++) sys.particles.push(spawnFirefly(sys));
   for (let i = 0; i < 15; i++) sys.particles.push(spawnLeaf(sys));
   for (let i = 0; i < 20; i++) sys.particles.push(spawnDust(sys));
+  for (let i = 0; i < 18; i++) sys.particles.push(spawnButterfly(sys));
 
   return sys;
 }
@@ -124,9 +148,10 @@ export function updateAmbient(sys: AmbientSystem) {
   // Spawn rate – one every ~4 frames
   if (sys.spawnTimer % 4 === 0) {
     const roll = Math.random();
-    if (roll < 0.5) sys.particles.push(spawnFirefly(sys));
-    else if (roll < 0.75) sys.particles.push(spawnLeaf(sys));
-    else sys.particles.push(spawnDust(sys));
+    if (roll < 0.35) sys.particles.push(spawnFirefly(sys));
+    else if (roll < 0.6) sys.particles.push(spawnLeaf(sys));
+    else if (roll < 0.8) sys.particles.push(spawnDust(sys));
+    else sys.particles.push(spawnButterfly(sys));
   }
 
   // Cap particle count
@@ -197,6 +222,30 @@ export function drawAmbient(
       ctx.beginPath();
       ctx.ellipse(0, 0, p.radius, p.radius * 1.7, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    } else if (p.type === "butterfly") {
+      p.position.x += p.velocity.x + Math.sin(p.wobble * 0.7) * 0.8;
+      p.position.y += p.velocity.y + Math.cos(p.wobble * 0.5) * 0.5;
+
+      const wingFlap = Math.abs(Math.sin(p.wobble * 4.5));
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha * (progress < 0.1 ? progress * 10 : progress > 0.9 ? (1 - progress) * 10 : 1)));
+      ctx.translate(p.position.x, p.position.y);
+      ctx.fillStyle = p.color;
+
+      // Left wing
+      ctx.beginPath();
+      ctx.ellipse(-p.radius * 0.6 * wingFlap, 0, p.radius * 0.7 * wingFlap, p.radius, Math.PI / 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Right wing
+      ctx.beginPath();
+      ctx.ellipse(p.radius * 0.6 * wingFlap, 0, p.radius * 0.7 * wingFlap, p.radius, -Math.PI / 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(-0.75, -p.radius * 0.6, 1.5, p.radius * 1.2);
       ctx.restore();
     } else {
       // dust
