@@ -230,10 +230,10 @@ export function StartScreen({ onEnter }: Props) {
         <button
           className={`ss-audio-pill ${bgmMuted ? "ss-audio-pill--muted" : ""}`}
           onClick={toggleMusic}
-          title={bgmMuted ? "Unmute relaxing music" : "Mute music"}
+          title={bgmMuted ? "Turn music on" : "Turn music off"}
         >
           <span className="ss-audio-icon">{bgmMuted ? "🔇" : "🎵"}</span>
-          <span className="ss-audio-label">{bgmMuted ? "Music Off" : "Peaceful BGM"}</span>
+          <span className="ss-audio-label">{bgmMuted ? "Music: Off" : "Music: On"}</span>
         </button>
         <button
           className="ss-audio-pill"
