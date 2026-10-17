@@ -681,7 +681,7 @@ function App() {
 
           // Periodic player position save (every 5 seconds)
           if (now - lastPosSave > 5000) {
-            savePlayerPos(player.position.x, player.position.y);
+            savePlayerPos(player.position.x, player.position.y, activeMapType);
             lastPosSave = now;
           }
 
@@ -809,40 +809,42 @@ function App() {
 
           ctx.restore();
 
-          // 10. Movement Update
+          // 10. Vector-Based Movement with Wall-Sliding
           let moved = false;
           player.moving = false;
 
           if (!activeDialogueRef.current) {
-            const activeKey = keyOrder[keyOrder.length - 1];
-            const pace = getPaceSpeed();
+            let inputX = 0;
+            let inputY = 0;
+            if (keys.w) inputY -= 1;
+            if (keys.s) inputY += 1;
+            if (keys.a) inputX -= 1;
+            if (keys.d) inputX += 1;
 
-            if (activeKey === "w" && keys.w) {
-              player.image = player.sprites!.up;
+            if (inputX !== 0 || inputY !== 0) {
+              clickPath = [];
               player.moving = true;
-              if (!wouldCollide({ x: 0, y: -pace })) {
-                movePlayer({ x: 0, y: -pace });
+              const pace = getPaceSpeed();
+
+              // Normalize diagonal vector so diagonal speed is consistent
+              const length = Math.hypot(inputX, inputY);
+              const vx = (inputX / length) * pace;
+              const vy = (inputY / length) * pace;
+
+              // Set sprite facing based on primary axis
+              if (Math.abs(inputX) >= Math.abs(inputY)) {
+                player.image = inputX > 0 ? player.sprites!.right : player.sprites!.left;
+              } else {
+                player.image = inputY > 0 ? player.sprites!.down : player.sprites!.up;
+              }
+
+              // Smooth Wall-Sliding: check X and Y separately
+              if (vx !== 0 && !wouldCollide({ x: vx, y: 0 })) {
+                movePlayer({ x: vx, y: 0 });
                 moved = true;
               }
-            } else if (activeKey === "a" && keys.a) {
-              player.image = player.sprites!.left;
-              player.moving = true;
-              if (!wouldCollide({ x: -pace, y: 0 })) {
-                movePlayer({ x: -pace, y: 0 });
-                moved = true;
-              }
-            } else if (activeKey === "s" && keys.s) {
-              player.image = player.sprites!.down;
-              player.moving = true;
-              if (!wouldCollide({ x: 0, y: pace })) {
-                movePlayer({ x: 0, y: pace });
-                moved = true;
-              }
-            } else if (activeKey === "d" && keys.d) {
-              player.image = player.sprites!.right;
-              player.moving = true;
-              if (!wouldCollide({ x: pace, y: 0 })) {
-                movePlayer({ x: pace, y: 0 });
+              if (vy !== 0 && !wouldCollide({ x: 0, y: vy })) {
+                movePlayer({ x: 0, y: vy });
                 moved = true;
               }
             } else {
