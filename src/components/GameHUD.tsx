@@ -227,9 +227,13 @@ function ControlsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Main HUD ─────────────────────────────────────────────────────────────
-
-export function GameHUD({ playerName, settings, onUpdateSettings, fps, onExitWorld }: Props) {
+export function GameHUD({
+  playerName: _playerName,
+  settings,
+  onUpdateSettings,
+  fps,
+  onExitWorld,
+}: Props) {
   const [showSettings, setShowSettings] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
