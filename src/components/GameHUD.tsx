@@ -8,6 +8,7 @@ type Props = {
   settings: GameSettings;
   onUpdateSettings: (partial: Partial<GameSettings>) => void;
   fps?: number;
+  onExitWorld?: () => void;
 };
 
 // ─── Controls reference ───────────────────────────────────────────────────
@@ -69,10 +70,12 @@ function SettingsModal({
   settings,
   onUpdate,
   onClose,
+  onExitWorld,
 }: {
   settings: GameSettings;
   onUpdate: (p: Partial<GameSettings>) => void;
   onClose: () => void;
+  onExitWorld?: () => void;
 }) {
   const handleBgmVolume = useCallback(
     (v: number) => {
@@ -160,6 +163,22 @@ function SettingsModal({
               </div>
             </label>
           </section>
+
+          {onExitWorld && (
+            <section className="hud-section">
+              <h3 className="hud-section-title">🚪 Session</h3>
+              <button
+                className="hud-leave-btn"
+                onClick={() => {
+                  audioManager.playClick();
+                  onClose();
+                  onExitWorld();
+                }}
+              >
+                Switch Character / Leave World
+              </button>
+            </section>
+          )}
         </div>
       </div>
     </div>
@@ -210,25 +229,33 @@ function ControlsModal({ onClose }: { onClose: () => void }) {
 
 // ─── Main HUD ─────────────────────────────────────────────────────────────
 
-export function GameHUD({ playerName, settings, onUpdateSettings, fps }: Props) {
+export function GameHUD({ playerName, settings, onUpdateSettings, fps, onExitWorld }: Props) {
   const [showSettings, setShowSettings] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
   const openSettings = useCallback(() => {
-    audioManager.playSFX("click");
+    audioManager.playOpen();
     setShowSettings(true);
     setShowControls(false);
   }, []);
 
   const openControls = useCallback(() => {
-    audioManager.playSFX("click");
-    setShowControls((v) => !v);
+    setShowControls((v) => {
+      if (!v) audioManager.playOpen();
+      else audioManager.playClose();
+      return !v;
+    });
     setShowSettings(false);
   }, []);
 
   const closeAll = useCallback(() => {
-    setShowSettings(false);
-    setShowControls(false);
+    setShowSettings((s) => {
+      setShowControls((c) => {
+        if (s || c) audioManager.playClose();
+        return false;
+      });
+      return false;
+    });
   }, []);
 
   // Global key listener for ? and Escape
@@ -236,8 +263,7 @@ export function GameHUD({ playerName, settings, onUpdateSettings, fps }: Props) 
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "?" || e.key === "/") {
         e.preventDefault();
-        setShowControls((v) => !v);
-        setShowSettings(false);
+        openControls();
       }
       if (e.key === "Escape") {
         closeAll();
@@ -245,7 +271,7 @@ export function GameHUD({ playerName, settings, onUpdateSettings, fps }: Props) 
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [closeAll]);
+  }, [openControls, closeAll]);
 
   return (
     <>
@@ -276,6 +302,20 @@ export function GameHUD({ playerName, settings, onUpdateSettings, fps }: Props) 
         >
           ⚙
         </button>
+        {onExitWorld && (
+          <button
+            id="hud-exit-btn"
+            className="hud-icon-btn hud-icon-btn--exit"
+            onClick={() => {
+              audioManager.playClick();
+              onExitWorld();
+            }}
+            title="Switch Character / Leave World"
+            aria-label="Leave world"
+          >
+            🚪
+          </button>
+        )}
       </div>
 
       {/* Modals */}
@@ -284,6 +324,7 @@ export function GameHUD({ playerName, settings, onUpdateSettings, fps }: Props) 
           settings={settings}
           onUpdate={onUpdateSettings}
           onClose={closeAll}
+          onExitWorld={onExitWorld}
         />
       )}
       {showControls && <ControlsModal onClose={closeAll} />}

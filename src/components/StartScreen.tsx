@@ -16,236 +16,194 @@ const MAX_NAME_LENGTH = 18;
 
 export function StartScreen({ onEnter }: Props) {
   const [step, setStep] = useState<"character" | "name">("character");
-  const [selectedChar, setSelectedChar] = useState<CharacterOption>(
-    CHARACTER_OPTIONS[0],
-  );
+  const [selectedChar, setSelectedChar] = useState<CharacterOption>(CHARACTER_OPTIONS[0]);
+  const [charIdx, setCharIdx] = useState(0);
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
-  const [charIdx, setCharIdx] = useState(0);
   const [entering, setEntering] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [starField] = useState(() =>
-    Array.from({ length: 60 }, () => ({
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: 0.5 + Math.random() * 1.5,
-      delay: Math.random() * 4,
-      duration: 2 + Math.random() * 3,
-    }))
-  );
 
-  // Init audio on first mount (needs user interaction via clicking)
   useEffect(() => {
     audioManager.init(DEFAULT_SETTINGS);
   }, []);
 
-  const handleSelectChar = useCallback(
-    (char: CharacterOption, idx: number) => {
-      setSelectedChar(char);
-      setCharIdx(idx);
-      audioManager.playSFX("click");
-    },
-    [],
-  );
-
-  const handleNext = useCallback(() => {
-    audioManager.playSFX("click");
-    setStep("name");
-    setTimeout(() => inputRef.current?.focus(), 100);
+  const selectChar = useCallback((char: CharacterOption, idx: number) => {
+    setSelectedChar(char);
+    setCharIdx(idx);
+    audioManager.playSelect();
   }, []);
 
-  const handleBack = useCallback(() => {
-    audioManager.playSFX("click");
+  const prevChar = useCallback(() => {
+    const idx = (charIdx - 1 + CHARACTER_OPTIONS.length) % CHARACTER_OPTIONS.length;
+    selectChar(CHARACTER_OPTIONS[idx], idx);
+  }, [charIdx, selectChar]);
+
+  const nextChar = useCallback(() => {
+    const idx = (charIdx + 1) % CHARACTER_OPTIONS.length;
+    selectChar(CHARACTER_OPTIONS[idx], idx);
+  }, [charIdx, selectChar]);
+
+  const goToName = useCallback(() => {
+    audioManager.playClick();
+    setStep("name");
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }, []);
+
+  const goBack = useCallback(() => {
+    audioManager.playClick();
     setStep("character");
     setNameError("");
   }, []);
 
   const handleEnter = useCallback(() => {
     const trimmed = name.trim();
-    if (!trimmed) {
-      setNameError("Please enter a name.");
-      return;
-    }
-    if (trimmed.length < 2) {
-      setNameError("Name must be at least 2 characters.");
-      return;
-    }
+    if (!trimmed) { setNameError("Please enter your name."); return; }
+    if (trimmed.length < 2) { setNameError("At least 2 characters required."); return; }
     setNameError("");
     setEntering(true);
-    audioManager.playSFX("join");
+    audioManager.playJoin();
     audioManager.playBGM();
     setTimeout(() => {
       onEnter({ name: trimmed, character: selectedChar });
-    }, 700);
+    }, 650);
   }, [name, selectedChar, onEnter]);
 
-  const handleNameKey = useCallback(
+  const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") handleEnter();
-      if (e.key === "Escape") handleBack();
+      if (e.key === "Escape") goBack();
     },
-    [handleEnter, handleBack],
+    [handleEnter, goBack],
   );
 
-  const prevChar = useCallback(() => {
-    const idx = (charIdx - 1 + CHARACTER_OPTIONS.length) % CHARACTER_OPTIONS.length;
-    handleSelectChar(CHARACTER_OPTIONS[idx], idx);
-  }, [charIdx, handleSelectChar]);
-
-  const nextChar = useCallback(() => {
-    const idx = (charIdx + 1) % CHARACTER_OPTIONS.length;
-    handleSelectChar(CHARACTER_OPTIONS[idx], idx);
-  }, [charIdx, handleSelectChar]);
-
   return (
-    <div className={`ss-root ${entering ? "ss-entering" : ""}`}>
-      {/* Starfield background */}
-      <div className="ss-stars">
-        {starField.map((star, i) => (
-          <div
-            key={i}
-            className="ss-star"
-            style={{
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              width: star.size,
-              height: star.size,
-              animationDelay: `${star.delay}s`,
-              animationDuration: `${star.duration}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Gradient orbs */}
-      <div className="ss-orb ss-orb1" />
-      <div className="ss-orb ss-orb2" />
-      <div className="ss-orb ss-orb3" />
-
-      {/* Main Card */}
-      <div className="ss-card">
-        {/* Logo / Title */}
-        <div className="ss-logo">
-          <div className="ss-logo-icon">🌍</div>
-          <h1 className="ss-title">OpenGather</h1>
-          <p className="ss-subtitle">A world of your own — together.</p>
+    <div className={`ss ${entering ? "ss--out" : ""}`}>
+      {/* Split layout */}
+      <div className="ss-left">
+        <div className="ss-brand">
+          <div className="ss-logo">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <circle cx="14" cy="14" r="13" stroke="#2d6a4f" strokeWidth="2"/>
+              <circle cx="14" cy="14" r="6" fill="#2d6a4f" opacity="0.25"/>
+              <circle cx="14" cy="14" r="2.5" fill="#2d6a4f"/>
+            </svg>
+            <span className="ss-brand-name">OpenGather</span>
+          </div>
+          <p className="ss-tagline">A shared world,<br/>yours to explore.</p>
         </div>
 
-        {/* Step: Character Selection */}
-        {step === "character" && (
-          <div className="ss-step ss-step-char">
-            <h2 className="ss-step-heading">Choose your character</h2>
-
-            {/* Featured character display */}
-            <div className="ss-char-featured">
-              <button className="ss-arrow-btn" onClick={prevChar} aria-label="Previous character">
-                ‹
-              </button>
-              <div
-                className="ss-char-avatar-big"
-                style={{ "--char-color": selectedChar.color } as React.CSSProperties}
-              >
+        {/* Character preview area */}
+        <div className="ss-preview">
+          <div className="ss-preview-scene">
+            {/* Grass dots decoration */}
+            <div className="ss-grass" />
+            <div
+              className="ss-char-display"
+              style={{ "--cc": selectedChar.color } as React.CSSProperties}
+            >
+              <div className="ss-char-shadow" />
+              <div className="ss-char-sprite">
                 <img
                   src={`/characters/${selectedChar.folder}/playerDown.png`}
                   alt={selectedChar.name}
-                  className="ss-char-sprite-big"
+                  draggable={false}
                 />
-                <div className="ss-char-glow" />
               </div>
-              <button className="ss-arrow-btn" onClick={nextChar} aria-label="Next character">
-                ›
-              </button>
             </div>
+          </div>
 
-            <div className="ss-char-info">
-              <span
-                className="ss-char-name-badge"
-                style={{ "--char-color": selectedChar.color } as React.CSSProperties}
-              >
-                {selectedChar.name}
-              </span>
-              <p className="ss-char-desc">{selectedChar.description}</p>
-            </div>
+          <div className="ss-char-label">
+            <span className="ss-char-dot" style={{ background: selectedChar.color }} />
+            <strong>{selectedChar.name}</strong>
+            <span className="ss-char-desc-sm">{selectedChar.description}</span>
+          </div>
+        </div>
 
-            {/* Character grid thumbnails */}
-            <div className="ss-char-grid">
-              {CHARACTER_OPTIONS.map((char, idx) => (
+        <p className="ss-hint">WASD to move · Double-click to explore · ? for controls</p>
+      </div>
+
+      <div className="ss-right">
+        {step === "character" && (
+          <div className="ss-panel" key="char">
+            <h1 className="ss-heading">Pick your character</h1>
+            <p className="ss-sub">You can always change this later.</p>
+
+            {/* Grid */}
+            <div className="ss-grid">
+              {CHARACTER_OPTIONS.map((c, i) => (
                 <button
-                  key={char.id}
-                  className={`ss-char-thumb ${idx === charIdx ? "ss-char-thumb--active" : ""}`}
-                  onClick={() => handleSelectChar(char, idx)}
-                  style={
-                    {
-                      "--char-color": char.color,
-                    } as React.CSSProperties
-                  }
-                  title={char.name}
+                  key={c.id}
+                  className={`ss-card ${i === charIdx ? "ss-card--active" : ""}`}
+                  onClick={() => selectChar(c, i)}
+                  style={{ "--cc": c.color } as React.CSSProperties}
                 >
-                  <img
-                    src={`/characters/${char.folder}/playerDown.png`}
-                    alt={char.name}
-                    className="ss-char-thumb-img"
-                  />
+                  <div className="ss-card-sprite">
+                    <img
+                      src={`/characters/${c.folder}/playerDown.png`}
+                      alt={c.name}
+                      draggable={false}
+                    />
+                  </div>
+                  <span className="ss-card-name">{c.name}</span>
+                  {i === charIdx && <div className="ss-card-ring" />}
                 </button>
               ))}
             </div>
 
-            <button className="ss-btn ss-btn-primary" onClick={handleNext}>
-              Continue →
+            {/* Carousel arrows */}
+            <div className="ss-nav">
+              <button className="ss-nav-btn" onClick={prevChar}>←</button>
+              <span className="ss-nav-dots">
+                {CHARACTER_OPTIONS.map((_, i) => (
+                  <span key={i} className={`ss-dot ${i === charIdx ? "ss-dot--on" : ""}`} />
+                ))}
+              </span>
+              <button className="ss-nav-btn" onClick={nextChar}>→</button>
+            </div>
+
+            <button className="ss-cta" onClick={goToName}>
+              Continue
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
           </div>
         )}
 
-        {/* Step: Name Entry */}
         {step === "name" && (
-          <div className="ss-step ss-step-name">
-            <div className="ss-mini-char" style={{ "--char-color": selectedChar.color } as React.CSSProperties}>
-              <img
-                src={`/characters/${selectedChar.folder}/playerDown.png`}
-                alt={selectedChar.name}
-                className="ss-mini-sprite"
-              />
-              <span className="ss-mini-name">{selectedChar.name}</span>
-            </div>
+          <div className="ss-panel" key="name">
+            <button className="ss-back" onClick={goBack}>← Back</button>
+            <h1 className="ss-heading">What's your name?</h1>
+            <p className="ss-sub">This is what others will see above your character.</p>
 
-            <h2 className="ss-step-heading">What's your name?</h2>
-            <p className="ss-step-hint">This is how others will see you in the world.</p>
-
-            <div className="ss-name-field-wrap">
+            <div className="ss-field">
               <input
                 ref={inputRef}
                 type="text"
-                className={`ss-name-input ${nameError ? "ss-name-input--error" : ""}`}
-                placeholder="Enter your name…"
+                className={`ss-input ${nameError ? "ss-input--err" : ""}`}
+                placeholder="Your name here…"
                 value={name}
                 maxLength={MAX_NAME_LENGTH}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (nameError) setNameError("");
-                }}
-                onKeyDown={handleNameKey}
+                onChange={(e) => { setName(e.target.value); if (nameError) setNameError(""); }}
+                onKeyDown={onKeyDown}
+                autoComplete="off"
+                spellCheck={false}
               />
-              <span className="ss-name-counter">
-                {name.length}/{MAX_NAME_LENGTH}
-              </span>
+              <span className="ss-counter">{name.length}/{MAX_NAME_LENGTH}</span>
             </div>
-            {nameError && <p className="ss-name-error">{nameError}</p>}
+            {nameError && <p className="ss-err">{nameError}</p>}
 
-            <div className="ss-row">
-              <button className="ss-btn ss-btn-ghost" onClick={handleBack}>
-                ← Back
-              </button>
-              <button className="ss-btn ss-btn-primary" onClick={handleEnter}>
-                Enter World 🌍
-              </button>
-            </div>
+            <button className="ss-cta" onClick={handleEnter} disabled={entering}>
+              {entering ? "Entering…" : "Enter World"}
+              {!entering && (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
           </div>
         )}
       </div>
-
-      <p className="ss-footer">
-        OpenGather · Use WASD or double-click to move · Press ? for controls
-      </p>
     </div>
   );
 }
