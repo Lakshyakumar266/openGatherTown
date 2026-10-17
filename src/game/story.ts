@@ -285,10 +285,39 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     speaker: "Elder Oakhaven",
     title: "Glade Sage",
     portrait: "/characters/03-brom/playerDown.png",
-    text: "Walk softly, child. The supply crates lie just to the south by the cottage wall, and the Ancient Well shimmers to our northeast.",
+    text: "Walk softly, child. The soothing winds watch over you. How fares your exploration of our glade?",
     options: [
       {
-        text: "Understood, Elder.",
+        text: "Where were the crates and the well again?",
+        nextNodeId: "elder_directions",
+      },
+      {
+        text: "Could you tell me more about the ancient history of this realm?",
+        nextNodeId: "elder_lore",
+      },
+      {
+        text: "I have the Amber Rune! (Deliver relic)",
+        condition: (state) => Boolean(state.flags.hasRune && !state.flags.questCompleted),
+        nextNodeId: "elder_turn_in",
+      },
+      {
+        text: "I'll continue my journey, Elder.",
+      },
+    ],
+  },
+  elder_directions: {
+    id: "elder_directions",
+    speaker: "Elder Oakhaven",
+    title: "Glade Sage",
+    portrait: "/characters/03-brom/playerDown.png",
+    text: "The wooden supply crates rest just to the south against the cottage wall, and the Ancient Well shimmers to our northeast among the wild grass.",
+    options: [
+      {
+        text: "Understood, Elder. I'm on my way.",
+      },
+      {
+        text: "Tell me of the ancient lore instead.",
+        nextNodeId: "elder_lore",
       },
     ],
   },
@@ -406,10 +435,14 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     speaker: "Ancient Well of Whispers",
     title: "Sacred Landmark",
     portrait: "💧",
-    text: "Clear, tranquil water mirrors the azure sky. The well hums softly in contentment.",
+    text: "Clear, tranquil water mirrors the azure sky. The well hums softly in contentment, its waters radiating peace.",
     options: [
       {
-        text: "Step away.",
+        text: "Listen to the harmonic melody echoing within.",
+        nextNodeId: "well_listen",
+      },
+      {
+        text: "Step away peacefully.",
       },
     ],
   },
@@ -455,10 +488,26 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     speaker: "Cottage Supply Cache",
     title: "Village Cache",
     portrait: "📦",
-    text: "The wooden crates contain spare straw, garden shears, and neat bundles of drying herbs.",
+    text: "The wooden crates contain spare straw, garden shears, and bundles of fragrant drying lavender. You've already collected the Chamomile Tea.",
     options: [
       {
+        text: "Smell the calming lavender aroma.",
+        nextNodeId: "crates_lavender",
+      },
+      {
         text: "Step away.",
+      },
+    ],
+  },
+  crates_lavender: {
+    id: "crates_lavender",
+    speaker: "Cottage Supply Cache",
+    title: "Village Cache",
+    portrait: "🌾",
+    text: "The rich aroma of fresh lavender relaxes your mind and washes away all fatigue.",
+    options: [
+      {
+        text: "Step away peacefully.",
       },
     ],
   },
@@ -507,7 +556,7 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     speaker: "Echo",
     title: "Meadow Wanderer",
     portrait: "/characters/00-classic/playerDown.png",
-    text: "Elder Oakhaven watches over the grove. If you haven't spoken to him yet, he's usually standing near the well admiring the flowers.",
+    text: "Elder Oakhaven watches over the grove. If you haven't spoken to him yet, he's standing in the garden admiring the flowers.",
     options: [
       {
         text: "I'll go talk to him.",
@@ -519,10 +568,34 @@ export const DIALOGUE_NODES: Record<string, DialogueNode> = {
     speaker: "Echo",
     title: "Meadow Wanderer",
     portrait: "/characters/00-classic/playerDown.png",
-    text: "The sun warms the stones, the water whispers in the well... It feels wonderful to be alive in Oakhaven today.",
+    text: "The sun warms the stones, the water whispers in the well... It feels wonderful to be alive in Oakhaven today. Anything on your mind, traveler?",
     options: [
       {
-        text: "Indeed it does, Echo.",
+        text: "Tell me about the controls again.",
+        nextNodeId: "echo_controls",
+      },
+      {
+        text: "Tell me about the village & Elder Oakhaven.",
+        nextNodeId: "echo_village",
+      },
+      {
+        text: "Have you seen the wild animals?",
+        nextNodeId: "echo_animals",
+      },
+      {
+        text: "Enjoy your stroll, Echo!",
+      },
+    ],
+  },
+  echo_animals: {
+    id: "echo_animals",
+    speaker: "Echo",
+    title: "Meadow Wanderer",
+    portrait: "/characters/00-classic/playerDown.png",
+    text: "Yes! There are wild meadow rabbits hopping among the clover, gentle deer grazing by the tree line, and curious foxes exploring the glade. If you walk slowly, they won't startle!",
+    options: [
+      {
+        text: "I love the wildlife here.",
       },
     ],
   },

@@ -179,12 +179,13 @@
   text-align: left;
 }
 
-.dlg-choice-btn:hover {
+.dlg-choice-btn:hover,
+.dlg-choice-btn--focused {
   background: rgba(30, 60, 45, 0.98);
   border-color: #f59e0b;
   color: #ffffff;
   transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
 }
 
 .dlg-choice-key {

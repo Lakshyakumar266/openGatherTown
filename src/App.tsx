@@ -903,7 +903,7 @@ function App() {
   const handleTeleportToWell = useCallback(() => {
     if (teleportRef.current) {
       if (settings.selectedMap === "new") {
-        teleportRef.current({ x: 22 * 64 + 32, y: 12 * 64 + 32 });
+        teleportRef.current({ x: 44 * 64 + 32, y: 28 * 64 + 32 });
       } else {
         teleportRef.current({ x: 810, y: 220 });
       }

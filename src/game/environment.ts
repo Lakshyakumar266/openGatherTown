@@ -35,10 +35,11 @@ export function createEnvironmentSystem(mapType: "legacy" | "new"): EnvironmentS
           { x: 740, y: 640, radius: 46, canopyHeight: 65 },
         ]
       : [
-          { x: 500, y: 350, radius: 52, canopyHeight: 75 },
-          { x: 1100, y: 350, radius: 56, canopyHeight: 80 },
-          { x: 700, y: 800, radius: 48, canopyHeight: 70 },
-          { x: 1000, y: 850, radius: 50, canopyHeight: 72 },
+          { x: 1800, y: 3100, radius: 52, canopyHeight: 75 },
+          { x: 2350, y: 3250, radius: 56, canopyHeight: 80 },
+          { x: 1900, y: 1500, radius: 50, canopyHeight: 72 },
+          { x: 2600, y: 1400, radius: 54, canopyHeight: 78 },
+          { x: 1400, y: 2400, radius: 48, canopyHeight: 70 },
         ];
 
   const colors = ["#86efac", "#4ade80", "#22c55e", "#fef08a", "#f59e0b", "#fed7aa"];
@@ -76,7 +77,7 @@ export function updateEnvironment(env: EnvironmentSystem) {
     leaf.sway += leaf.swaySpeed;
 
     // Reset leaf when it drifts out of range
-    if (leaf.y > 1100 || leaf.x > 1400) {
+    if (leaf.y > 4500 || leaf.x > 4500) {
       const parent = env.trees[Math.floor(Math.random() * env.trees.length)];
       leaf.x = parent.x - 80 + Math.random() * 60;
       leaf.y = parent.y - 30 + Math.random() * 40;

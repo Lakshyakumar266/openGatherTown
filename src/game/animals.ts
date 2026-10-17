@@ -146,20 +146,20 @@ export function createMeadowAnimals(mapType: "legacy" | "new"): Animal[] {
       },
     ];
   } else {
-    // New Map (Ancient Ruins) animals
+    // New Map (Big WFC World) animals
     return [
       {
         id: "rabbit_new_1",
         type: "rabbit",
-        x: 750,
-        y: 500,
+        x: 1950,
+        y: 3250,
         facing: 1,
         state: "idle",
         frameIndex: 0,
         frameElapsed: 0,
         stateTimer: 140,
-        targetX: 750,
-        targetY: 500,
+        targetX: 1950,
+        targetY: 3250,
         baseSpeed: 1.8,
         width: 32,
         height: 26,
@@ -169,15 +169,33 @@ export function createMeadowAnimals(mapType: "legacy" | "new"): Animal[] {
       {
         id: "rabbit_new_2",
         type: "rabbit",
-        x: 920,
-        y: 650,
+        x: 2180,
+        y: 3400,
         facing: -1,
         state: "graze",
         frameIndex: 0,
         frameElapsed: 0,
         stateTimer: 160,
-        targetX: 920,
-        targetY: 650,
+        targetX: 2180,
+        targetY: 3400,
+        baseSpeed: 1.8,
+        width: 32,
+        height: 26,
+        idleFrames: 10,
+        moveFrames: 10,
+      },
+      {
+        id: "rabbit_new_3",
+        type: "rabbit",
+        x: 1800,
+        y: 3100,
+        facing: 1,
+        state: "idle",
+        frameIndex: 0,
+        frameElapsed: 0,
+        stateTimer: 180,
+        targetX: 1800,
+        targetY: 3100,
         baseSpeed: 1.8,
         width: 32,
         height: 26,
@@ -187,15 +205,33 @@ export function createMeadowAnimals(mapType: "legacy" | "new"): Animal[] {
       {
         id: "deer_new_1",
         type: "deer",
-        x: 1050,
-        y: 420,
+        x: 2450,
+        y: 3150,
         facing: -1,
         state: "graze",
         frameIndex: 0,
         frameElapsed: 0,
         stateTimer: 220,
-        targetX: 1050,
-        targetY: 420,
+        targetX: 2450,
+        targetY: 3150,
+        baseSpeed: 1.2,
+        width: 72,
+        height: 52,
+        idleFrames: 10,
+        moveFrames: 8,
+      },
+      {
+        id: "deer_new_2",
+        type: "deer",
+        x: 2650,
+        y: 2800,
+        facing: 1,
+        state: "idle",
+        frameIndex: 0,
+        frameElapsed: 0,
+        stateTimer: 250,
+        targetX: 2650,
+        targetY: 2800,
         baseSpeed: 1.2,
         width: 72,
         height: 52,
@@ -205,15 +241,15 @@ export function createMeadowAnimals(mapType: "legacy" | "new"): Animal[] {
       {
         id: "fox_new_1",
         type: "fox",
-        x: 600,
-        y: 620,
+        x: 1880,
+        y: 3350,
         facing: 1,
         state: "idle",
         frameIndex: 0,
         frameElapsed: 0,
         stateTimer: 200,
-        targetX: 600,
-        targetY: 620,
+        targetX: 1880,
+        targetY: 3350,
         baseSpeed: 1.5,
         width: 64,
         height: 36,
@@ -310,9 +346,12 @@ export function drawAnimals(ctx: CanvasRenderingContext2D, animals: Animal[], sp
     ctx.fillStyle = "rgba(10, 25, 18, 0.32)";
     ctx.fill();
 
-    // Position and facing flip
+    // Position and forward-facing flip:
+    // Natural sprite strips (rabbit, deer, fox) face LEFT by default.
+    // When moving RIGHT (facing === 1), flip horizontally with scale(-1, 1).
+    // When moving LEFT (facing === -1), render unflipped with scale(1, 1).
     ctx.translate(animal.x, animal.y);
-    if (animal.facing === -1) {
+    if (animal.facing === 1) {
       ctx.scale(-1, 1);
     }
 
