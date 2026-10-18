@@ -85,31 +85,6 @@
   color: #0f172a;
 }
 
-.minimap-coords-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: #94a3b8;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-}
-
-.minimap-coords-val {
-  color: #f1f5f9;
-  font-weight: 700;
-}
-
-.minimap-region-pill {
-  color: #38bdf8;
-  font-weight: 600;
-  font-size: 11px;
-}
-
 /* ─── Expandable Full-Screen World Map Modal ───────────────────────────────── */
 .worldmap-backdrop {
   position: fixed;

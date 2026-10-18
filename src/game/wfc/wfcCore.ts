@@ -286,8 +286,13 @@ export class WfcModel {
   }
 
   // Run the full WFC constraint satisfaction solver
-  run(seed: number, limit = -1): boolean {
-    this.clear();
+  run(seed: number, limit = -1, clearState = true): boolean {
+    if (clearState) {
+      this.clear();
+    } else {
+      const initSuccess = this.propagate();
+      if (!initSuccess) return false;
+    }
 
     // Mulberry32 deterministic PRNG
     let s = seed | 0;

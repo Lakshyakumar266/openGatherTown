@@ -35,11 +35,11 @@ export function MiniMap({
   const currentRegion = useMemo(() => {
     const { x, y } = playerPos;
     if (mapType === "new") {
-      if (y < 1400) return "⚡ Sunken Citadel";
-      if (x > 2600 && y >= 1400 && y < 2700) return "🌊 Whispering Lake";
-      if (x < 1800 && y >= 1600 && y < 2900) return "🌲 Hermit's Grove";
-      if (y >= 2900) return "🏡 Oakhaven Haven";
-      return "🌿 Wildflower Glade";
+      if (y < 1600 && x < 2600) return "⚡ Sunken Citadel Sanctum";
+      if (x > 2600 && y >= 1400 && y < 2700) return "🌲 Whispering Deepwoods";
+      if (x < 1800 && y >= 1600 && y < 2900) return "🌲 Hermit's Ancient Grove";
+      if (y >= 2900) return "🏡 Oakhaven Hamlet";
+      return "🌿 Wildflower Glade Highway";
     } else {
       if (y < 200) return "🌊 Whispering Shore";
       if (x > 800) return "🏡 Oakhaven Cottages";
@@ -87,19 +87,21 @@ export function MiniMap({
         for (let r = 0; r < rows; r++) {
           for (let col = 0; col < cols; col++) {
             const tileIdx = grid[r]?.[col] ?? 0;
-            // Palette mapping for radar representation
-            if (tileIdx === 0) {
-              c.fillStyle = "#1e3a8a"; // Deep Ocean
-            } else if (tileIdx >= 1 && tileIdx <= 8) {
-              c.fillStyle = "#0284c7"; // Coastline / Shore
-            } else if (tileIdx >= 16 && tileIdx <= 24) {
-              c.fillStyle = "#ca8a04"; // Cobblestone Highway
-            } else if (tileIdx >= 27 && tileIdx <= 38) {
-              c.fillStyle = "#64748b"; // Sunken Citadel Slate
-            } else if (tileIdx >= 11 && tileIdx <= 13) {
-              c.fillStyle = "#15803d"; // Wildflower field
+            // Palette mapping for radar representation across WFC biomes
+            if (tileIdx === 17) {
+              c.fillStyle = "#0c2818"; // Ancient Perimeter Forest (dense border)
+            } else if (tileIdx === 4) {
+              c.fillStyle = "#d1a054"; // Cobblestone Highway Network
+            } else if (tileIdx === 5 || (tileIdx >= 6 && tileIdx <= 14)) {
+              c.fillStyle = "#8492a6"; // Sunken Citadel Slate & Stone Walls
+            } else if (tileIdx === 15 || tileIdx === 16) {
+              c.fillStyle = "#a0aec0"; // Stone Stairs & Gateways
+            } else if (tileIdx === 3) {
+              c.fillStyle = "#1e4d2b"; // Whispering Forest Understory
+            } else if (tileIdx === 1 || tileIdx === 2) {
+              c.fillStyle = "#48bb78"; // Wildflower Glade Meadows
             } else {
-              c.fillStyle = "#166534"; // Lush Meadow Grass
+              c.fillStyle = "#2d7a4d"; // Lush Open Grasslands
             }
             c.fillRect(col * cellW, r * cellH, cellW + 0.5, cellH + 0.5);
           }
@@ -230,14 +232,6 @@ export function MiniMap({
           </div>
           <div className="minimap-expand-hint">[M] Expand ↗</div>
         </div>
-
-        <div className="minimap-coords-row">
-          <span>POS</span>
-          <span className="minimap-coords-val">
-            {Math.round(playerPos.x)}, {Math.round(playerPos.y)}
-          </span>
-          <span className="minimap-region-pill">{mapType === "new" ? "RUINS" : "VILLAGE"}</span>
-        </div>
       </div>
 
       {/* Expandable Full-Screen World Map Modal */}
@@ -258,7 +252,7 @@ export function MiniMap({
                 <span className="worldmap-title-icon">🧭</span>
                 <div>
                   <h3 className="worldmap-title">
-                    {mapType === "new" ? "ANCIENT ARCHIPELAGO OF OPENGATHER" : "OAKHAVEN GLADE WORLD MAP"}
+                    {mapType === "new" ? "KINGDOM OF OPENGATHER: SUNKEN SANCTUARY" : "OAKHAVEN GLADE WORLD MAP"}
                   </h3>
                   <div className="worldmap-subtitle">
                     {activeQuestTitle ? `Active Quest: ${activeQuestTitle}` : "Explore, discover ancient relics, and restore the Sunken Core."}
@@ -318,12 +312,16 @@ export function MiniMap({
                       <span>Sacred Altars & Relics</span>
                     </li>
                     <li className="worldmap-legend-item">
-                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#1e3a8a" }} />
-                      <span>Deep Sapphire Ocean</span>
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#8492a6" }} />
+                      <span>Citadel Ruins & Walls</span>
                     </li>
                     <li className="worldmap-legend-item">
-                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#ca8a04" }} />
-                      <span>Cobblestone Footpaths</span>
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#d1a054" }} />
+                      <span>Cobblestone Highways</span>
+                    </li>
+                    <li className="worldmap-legend-item">
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#0c2818" }} />
+                      <span>Dense Ancient Forest</span>
                     </li>
                   </ul>
                 </div>
