@@ -379,6 +379,7 @@ function App() {
       propsTileset: "/tiles/cainos/tx_props.png",
       plantTileset: "/tiles/cainos/tx_plant.png",
       shadowPlantTileset: "/tiles/cainos/tx_shadow_plant.png",
+      waterTileset: "/tiles/gentle_forest/gentle forest v01.png",
     };
 
     if (activeMapType === "legacy") {

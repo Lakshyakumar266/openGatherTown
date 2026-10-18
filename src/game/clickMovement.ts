@@ -28,6 +28,13 @@ export const buildClickPath = ({
       mapOrigin,
       playerSize,
     });
+  const startTile = nearestStandableTile({
+    tile: worldToTile(center, mapOrigin),
+    collisionsMap,
+    mapOrigin,
+    playerSize,
+  });
+
   const targetTile = nearestStandableTile({
     tile: worldToTile(target, mapOrigin),
     collisionsMap,
@@ -35,9 +42,9 @@ export const buildClickPath = ({
     playerSize,
   });
 
-  let path = targetTile
+  let path = (startTile && targetTile)
     ? findShortestCardinalPath({
-        start: worldToTile(center, mapOrigin),
+        start: startTile,
         end: targetTile,
         collisionsMap,
         mapOrigin,

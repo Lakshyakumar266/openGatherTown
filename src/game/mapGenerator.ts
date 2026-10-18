@@ -121,15 +121,20 @@ export const TILE_STONE_BRIDGE = 27;
 
 // ── Layer 3: Cliffs, Retaining Walls & Stairs ──────────────────────────────────
 export const TILE_CLIFF_NONE = 0;
-export const TILE_CLIFF_COPING_H = 28;     // Top wall coping (tx_wall.png)
-export const TILE_CLIFF_CORNER_NW = 29;    // NW wall corner
-export const TILE_CLIFF_CORNER_NE = 30;    // NE wall corner
-export const TILE_CLIFF_CORNER_SW = 31;    // SW wall corner
-export const TILE_CLIFF_CORNER_SE = 32;    // SE wall corner
-export const TILE_CLIFF_FACE_WALL = 33;    // Stone wall face bricks
-export const TILE_CLIFF_STAIRS_L = 34;     // Stone stairs left handrail (tx_struct.png)
-export const TILE_CLIFF_STAIRS_C = 35;     // Stone stairs center steps (tx_struct.png)
-export const TILE_CLIFF_STAIRS_R = 36;     // Stone stairs right handrail (tx_struct.png)
+export const TILE_CLIFF_COPING_H = 28;     // South wall coping (tx_wall.png [64, 96, 32, 32])
+export const TILE_CLIFF_CORNER_NW = 29;    // NW wall corner ([384, 32, 32, 32] or [32, 32, 32, 32])
+export const TILE_CLIFF_CORNER_NE = 30;    // NE wall corner ([448, 32, 32, 32] or [96, 32, 32, 32])
+export const TILE_CLIFF_CORNER_SW = 31;    // SW wall corner coping ([32, 96, 32, 32])
+export const TILE_CLIFF_CORNER_SE = 32;    // SE wall corner coping ([96, 96, 32, 32])
+export const TILE_CLIFF_FACE_WALL = 33;    // Stone wall face bricks ([64, 128, 32, 32])
+export const TILE_CLIFF_STAIRS_L = 34;     // Carved stone stairs left ([32, 160..224] in tx_struct)
+export const TILE_CLIFF_STAIRS_C = 35;     // Carved stone stairs center step
+export const TILE_CLIFF_STAIRS_R = 36;     // Carved stone stairs right ([64, 160..224] in tx_struct)
+export const TILE_CLIFF_PARAPET_N = 38;    // North horizontal parapet ([416, 32, 32, 32])
+export const TILE_CLIFF_EDGE_W = 39;       // West vertical parapet ([288, 64, 32, 32])
+export const TILE_CLIFF_EDGE_E = 40;       // East vertical parapet ([320, 64, 32, 32])
+export const TILE_CLIFF_CORNER_SW_FACE = 41; // SW wall corner brick face ([32, 128, 32, 32])
+export const TILE_CLIFF_CORNER_SE_FACE = 42; // SE wall corner brick face ([96, 128, 32, 32])
 
 // ── Layered Map Generator ──────────────────────────────────────────────────────
 export function generateProceduralMap(
@@ -265,46 +270,75 @@ export function generateProceduralMap(
     }
   }
 
-  // North Coping of Uphill Plateau
-  for (let c = hillMinCol + 1; c < hillMaxCol; c++) {
-    cliffGrid[hillMinRow][c] = TILE_CLIFF_COPING_H;
-    collisionGrid[hillMinRow][c] = 1025;
-  }
+  // North Parapet of Uphill Plateau (Row 10)
   cliffGrid[hillMinRow][hillMinCol] = TILE_CLIFF_CORNER_NW;
   collisionGrid[hillMinRow][hillMinCol] = 1025;
+  for (let c = hillMinCol + 1; c < hillMaxCol; c++) {
+    cliffGrid[hillMinRow][c] = TILE_CLIFF_PARAPET_N;
+    collisionGrid[hillMinRow][c] = 1025;
+  }
   cliffGrid[hillMinRow][hillMaxCol] = TILE_CLIFF_CORNER_NE;
   collisionGrid[hillMinRow][hillMaxCol] = 1025;
 
-  // West & East Wall Coping
-  for (let r = hillMinRow + 1; r < hillMaxRow; r++) {
-    cliffGrid[r][hillMinCol] = TILE_CLIFF_FACE_WALL;
+  // West & East Wall Parapets (Rows 11..20)
+  for (let r = hillMinRow + 1; r < hillMaxRow - 1; r++) {
+    cliffGrid[r][hillMinCol] = TILE_CLIFF_EDGE_W;
     collisionGrid[r][hillMinCol] = 1025;
-    cliffGrid[r][hillMaxCol] = TILE_CLIFF_FACE_WALL;
+    cliffGrid[r][hillMaxCol] = TILE_CLIFF_EDGE_E;
     collisionGrid[r][hillMaxCol] = 1025;
   }
 
-  // South Retaining Wall Face & Central Stone Stairs
-  // South Wall Row 22 (Facing the lower highway)
-  for (let c = hillMinCol; c <= hillMaxCol; c++) {
-    if (c === 52) {
-      cliffGrid[hillMaxRow][c] = TILE_CLIFF_STAIRS_L;
-      collisionGrid[hillMaxRow][c] = 0; // WALKABLE STAIRS!
-      collisionGrid[hillMaxRow - 1][c] = 0;
-    } else if (c === 53) {
-      cliffGrid[hillMaxRow][c] = TILE_CLIFF_STAIRS_C;
-      collisionGrid[hillMaxRow][c] = 0; // WALKABLE STAIRS!
-      collisionGrid[hillMaxRow - 1][c] = 0;
-    } else if (c === 54) {
-      cliffGrid[hillMaxRow][c] = TILE_CLIFF_STAIRS_R;
-      collisionGrid[hillMaxRow][c] = 0; // WALKABLE STAIRS!
-      collisionGrid[hillMaxRow - 1][c] = 0;
-    } else {
-      cliffGrid[hillMaxRow - 1][c] = TILE_CLIFF_COPING_H;
-      cliffGrid[hillMaxRow][c] = TILE_CLIFF_FACE_WALL;
-      collisionGrid[hillMaxRow - 1][c] = 1025;
-      collisionGrid[hillMaxRow][c] = 1025;
-    }
+  // South Retaining Wall & Central Carved Stone Stairs (Rows 21..22)
+  // Row 21: Upper Coping Row
+  cliffGrid[21][hillMinCol] = TILE_CLIFF_CORNER_SW; // SW corner coping
+  collisionGrid[21][hillMinCol] = 1025;
+
+  for (let c = hillMinCol + 1; c <= 51; c++) {
+    cliffGrid[21][c] = TILE_CLIFF_COPING_H;
+    collisionGrid[21][c] = 1025;
   }
+
+  // Stairs at Cols 52..53: Top steps (walkable!)
+  cliffGrid[21][52] = TILE_CLIFF_STAIRS_L;
+  collisionGrid[21][52] = 0;
+  cliffGrid[21][53] = 0; // Or TILE_CLIFF_STAIRS_R;
+  cliffGrid[21][53] = TILE_CLIFF_STAIRS_R;
+  collisionGrid[21][53] = 0;
+
+  for (let c = 54; c < hillMaxCol; c++) {
+    cliffGrid[21][c] = TILE_CLIFF_COPING_H;
+    collisionGrid[21][c] = 1025;
+  }
+  cliffGrid[21][hillMaxCol] = TILE_CLIFF_CORNER_SE; // SE corner coping
+  collisionGrid[21][hillMaxCol] = 1025;
+
+  // Row 22: Lower Brick Wall Face Row
+  cliffGrid[22][hillMinCol] = TILE_CLIFF_CORNER_SW_FACE; // SW corner face
+  collisionGrid[22][hillMinCol] = 1025;
+
+  for (let c = hillMinCol + 1; c <= 51; c++) {
+    cliffGrid[22][c] = TILE_CLIFF_FACE_WALL;
+    collisionGrid[22][c] = 1025;
+  }
+
+  // Stairs at Cols 52..53: Bottom steps (walkable!)
+  cliffGrid[22][52] = TILE_CLIFF_STAIRS_L;
+  collisionGrid[22][52] = 0;
+  cliffGrid[22][53] = TILE_CLIFF_STAIRS_R;
+  collisionGrid[22][53] = 0;
+
+  for (let c = 54; c < hillMaxCol; c++) {
+    cliffGrid[22][c] = TILE_CLIFF_FACE_WALL;
+    collisionGrid[22][c] = 1025;
+  }
+  cliffGrid[22][hillMaxCol] = TILE_CLIFF_CORNER_SE_FACE; // SE corner face
+  collisionGrid[22][hillMaxCol] = 1025;
+
+  // Clear walkable stair approach & terrace exit corridor
+  collisionGrid[20][52] = 0;
+  collisionGrid[20][53] = 0;
+  collisionGrid[23][52] = 0;
+  collisionGrid[23][53] = 0;
 
   // 7. Structure & Overhead Tile Placements (Layer 4 & 5)
   // Everything is composed purely from transparent tilesets (tx_wall, tx_struct, tx_props, tx_plant)
@@ -448,14 +482,11 @@ export function generateProceduralMap(
   addOverheadTile("struct", 64, 128, 48, 44);
   addOverheadTile("struct", 128, 128, 49, 44);
 
-  // ── BUILD HIGHLAND SUN ALTAR PLATFORM (Cols 52..55, Rows 14..15) ──
-  for (let c = 52; c <= 55; c++) {
-    addStructTile("struct", 64, 320, c, 15);
-  }
-  // Carved Sun Altar Table (64x64)
-  addStructTile("props", 64, 0, 53, 14, 64, 64, tileSize * 1.5, tileSize * 1.5);
+  // ── BUILD HIGHLAND SACRED SUN ALTAR (Cols 52..54, Rows 14..15) ──
+  // Authentic Circular Rune Stone Altar from tx_props.png (sx:340, sy:266, sw:107, sh:94)
+  addStructTile("props", 340, 266, 52, 14, 107, 94, tileSize * 2.4, tileSize * 2.1);
   // Flanking Monolith Pillars
-  addStructTile("struct", 416, 0, 51, 14, 32, 64, tileSize, tileSize * 1.5);
+  addStructTile("struct", 416, 0, 50, 14, 32, 64, tileSize, tileSize * 1.5);
   addStructTile("struct", 416, 0, 55, 14, 32, 64, tileSize, tileSize * 1.5);
 
   // ── BUILD WHISPERING LAKE WOODEN DOCK (Cols 24..26, Row 32) ──
@@ -466,8 +497,8 @@ export function generateProceduralMap(
   addStructTile("props", 96, 0, 26, 32, 32, 32, 48, 48);
 
   // ── VILLAGE PROPS ON LAYER 4 ──
-  // Round Stone Well (Col 35, Row 48 - 64x64)
-  addStructTile("props", 416, 352, 35, 48, 64, 64, tileSize, tileSize);
+  // Ancient Carved Stone Well (Col 35, Row 48 - from tx_props.png sx:420, sy:359, sw:55, sh:49)
+  addStructTile("props", 420, 359, 35, 48, 55, 49, tileSize * 1.1, tileSize * 1.0);
   // Town Water Pump & Trough (Col 44, Row 48)
   addStructTile("props", 96, 0, 44, 48, 32, 64, 48, 64);
   // Forgotten Relic Chest on Highland Terrace (Col 57, Row 16)
@@ -766,6 +797,7 @@ export function generateProceduralMap(
     const stoneImg = imgs?.stoneTileset;
     const wallImg = imgs?.wallTileset;
     const structImg = imgs?.structTileset;
+    const waterImg = imgs?.waterTileset;
 
     // Viewport Culling Bounds
     const halfW = viewW / (2 * zoom);
@@ -787,8 +819,14 @@ export function generateProceduralMap(
         if (tileType === TILE_WATER_DEEP) {
           // Deep crystalline water with smooth specular shimmer
           const shimmer = Math.sin(animTime * 2.8 + col * 0.6 + r * 0.4) * 0.5 + 0.5;
-          c.fillStyle = `rgb(2, ${Math.round(110 + shimmer * 30)}, ${Math.round(180 + shimmer * 25)})`;
-          c.fillRect(px, py, tileSize + 1, tileSize + 1);
+          if (waterImg && waterImg.complete) {
+            c.drawImage(waterImg, 16, 144, 16, 16, px, py, tileSize + 1, tileSize + 1);
+            c.fillStyle = `rgba(2, ${Math.round(110 + shimmer * 30)}, ${Math.round(180 + shimmer * 25)}, 0.4)`;
+            c.fillRect(px, py, tileSize + 1, tileSize + 1);
+          } else {
+            c.fillStyle = `rgb(2, ${Math.round(110 + shimmer * 30)}, ${Math.round(180 + shimmer * 25)})`;
+            c.fillRect(px, py, tileSize + 1, tileSize + 1);
+          }
 
           // Water ripple specular light lines
           c.fillStyle = `rgba(186, 230, 253, ${0.12 + shimmer * 0.22})`;
@@ -865,8 +903,19 @@ export function generateProceduralMap(
             c.fillRect(px + tileSize - 6, py, 6, tileSize);
           }
         } else if (detail >= TILE_WATER_SHORE_N && detail <= TILE_WATER_CORNER_SE) {
+          // Organic shoreline bank autotiles from waterTileset if available
+          if (waterImg && waterImg.complete) {
+            if (detail === TILE_WATER_SHORE_N) c.drawImage(waterImg, 16, 128, 16, 16, px, py, tileSize + 1, tileSize + 1);
+            else if (detail === TILE_WATER_SHORE_S) c.drawImage(waterImg, 16, 176, 16, 16, px, py, tileSize + 1, tileSize + 1);
+            else if (detail === TILE_WATER_SHORE_W) c.drawImage(waterImg, 0, 144, 16, 16, px, py, tileSize + 1, tileSize + 1);
+            else if (detail === TILE_WATER_SHORE_E) c.drawImage(waterImg, 48, 144, 16, 16, px, py, tileSize + 1, tileSize + 1);
+            else if (detail === TILE_WATER_CORNER_NW) c.drawImage(waterImg, 0, 128, 16, 16, px, py, tileSize + 1, tileSize + 1);
+            else if (detail === TILE_WATER_CORNER_NE) c.drawImage(waterImg, 48, 128, 16, 16, px, py, tileSize + 1, tileSize + 1);
+            else if (detail === TILE_WATER_CORNER_SW) c.drawImage(waterImg, 0, 176, 16, 16, px, py, tileSize + 1, tileSize + 1);
+            else if (detail === TILE_WATER_CORNER_SE) c.drawImage(waterImg, 48, 176, 16, 16, px, py, tileSize + 1, tileSize + 1);
+          }
           // Soft organic foam shoreline blending ground into water
-          c.fillStyle = "rgba(186, 230, 253, 0.45)";
+          c.fillStyle = "rgba(186, 230, 253, 0.35)";
           if (detail === TILE_WATER_SHORE_N) c.fillRect(px, py + tileSize - 8, tileSize, 8);
           else if (detail === TILE_WATER_SHORE_S) c.fillRect(px, py, tileSize, 8);
           else if (detail === TILE_WATER_SHORE_W) c.fillRect(px + tileSize - 8, py, 8, tileSize);
@@ -890,36 +939,47 @@ export function generateProceduralMap(
 
         if (cliff === TILE_CLIFF_COPING_H) {
           if (wallImg && wallImg.complete) {
-            c.drawImage(wallImg, 32, 0, 32, 32, px, py, tileSize + 1, tileSize + 1);
+            c.drawImage(wallImg, 64, 96, 32, 32, px, py, tileSize + 1, tileSize + 1);
           } else {
             c.fillStyle = "#94a3b8";
             c.fillRect(px, py, tileSize, tileSize);
           }
         } else if (cliff === TILE_CLIFF_FACE_WALL) {
           if (wallImg && wallImg.complete) {
-            c.drawImage(wallImg, 32, 32, 32, 32, px, py, tileSize + 1, tileSize + 1);
+            c.drawImage(wallImg, 64, 128, 32, 32, px, py, tileSize + 1, tileSize + 1);
           } else {
             c.fillStyle = "#475569";
             c.fillRect(px, py, tileSize, tileSize);
           }
+        } else if (cliff === TILE_CLIFF_PARAPET_N) {
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 416, 32, 32, 32, px, py, tileSize + 1, tileSize + 1);
         } else if (cliff === TILE_CLIFF_CORNER_NW) {
-          if (wallImg && wallImg.complete) c.drawImage(wallImg, 0, 0, 32, 32, px, py, tileSize + 1, tileSize + 1);
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 384, 32, 32, 32, px, py, tileSize + 1, tileSize + 1);
         } else if (cliff === TILE_CLIFF_CORNER_NE) {
-          if (wallImg && wallImg.complete) c.drawImage(wallImg, 96, 0, 32, 32, px, py, tileSize + 1, tileSize + 1);
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 448, 32, 32, 32, px, py, tileSize + 1, tileSize + 1);
+        } else if (cliff === TILE_CLIFF_EDGE_W) {
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 288, 64, 32, 32, px, py, tileSize + 1, tileSize + 1);
+        } else if (cliff === TILE_CLIFF_EDGE_E) {
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 320, 64, 32, 32, px, py, tileSize + 1, tileSize + 1);
+        } else if (cliff === TILE_CLIFF_CORNER_SW) {
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 32, 96, 32, 32, px, py, tileSize + 1, tileSize + 1);
+        } else if (cliff === TILE_CLIFF_CORNER_SW_FACE) {
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 32, 128, 32, 32, px, py, tileSize + 1, tileSize + 1);
+        } else if (cliff === TILE_CLIFF_CORNER_SE) {
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 96, 96, 32, 32, px, py, tileSize + 1, tileSize + 1);
+        } else if (cliff === TILE_CLIFF_CORNER_SE_FACE) {
+          if (wallImg && wallImg.complete) c.drawImage(wallImg, 96, 128, 32, 32, px, py, tileSize + 1, tileSize + 1);
         } else if (cliff === TILE_CLIFF_STAIRS_L) {
-          // Left Stone Railing from tx_struct.png (y=320..384)
+          // Weathered stone stair left column: top step row 21, bottom step row 22
           if (structImg && structImg.complete) {
-            c.drawImage(structImg, 32, 320, 32, 64, px, py - 32, tileSize, tileSize + 32);
-          }
-        } else if (cliff === TILE_CLIFF_STAIRS_C) {
-          // Center Carved Stone Steps from tx_struct.png
-          if (structImg && structImg.complete) {
-            c.drawImage(structImg, 64, 320, 32, 64, px, py - 32, tileSize, tileSize + 32);
+            const sy = r === 21 ? 160 : 224;
+            c.drawImage(structImg, 32, sy, 32, 32, px, py, tileSize + 1, tileSize + 1);
           }
         } else if (cliff === TILE_CLIFF_STAIRS_R) {
-          // Right Stone Railing from tx_struct.png
+          // Weathered stone stair right column: top step row 21, bottom step row 22
           if (structImg && structImg.complete) {
-            c.drawImage(structImg, 128, 320, 32, 64, px, py - 32, tileSize, tileSize + 32);
+            const sy = r === 21 ? 160 : 224;
+            c.drawImage(structImg, 64, sy, 32, 32, px, py, tileSize + 1, tileSize + 1);
           }
         }
       }
