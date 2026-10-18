@@ -2,7 +2,16 @@ import { type InteractablePOI, POIS } from "./story";
 import { Boundary } from "../class";
 
 export interface TilePlacement {
-  sheet: "wall" | "struct" | "props" | "plant" | "stone" | "grass";
+  sheet:
+    | "wall"
+    | "struct"
+    | "props"
+    | "plant"
+    | "stone"
+    | "grass"
+    | "house1"
+    | "house2"
+    | "house4";
   sx: number;
   sy: number;
   sw: number;
@@ -240,7 +249,7 @@ export function generateProceduralMap(
   }
 
   // Branch road leading up to the Uphill Plateau Stairs
-  for (let r = 24; r <= 44; r++) {
+  for (let r = 23; r <= 44; r++) {
     for (let dc = 0; dc <= 1; dc++) {
       const c = 52 + dc;
       detailGrid[r][c] = TILE_ROAD_COBBLESTONE;
@@ -248,11 +257,25 @@ export function generateProceduralMap(
     }
   }
 
+  // North Riverbank Path: connects Main Highway (col 40) to Plateau Stairs Road (col 52)
+  for (let c = 40; c <= 52; c++) {
+    detailGrid[24][c] = TILE_ROAD_COBBLESTONE;
+    collisionGrid[24][c] = 0;
+  }
+
   // 5. Arched Stone Bridge across Crystal Creek River (Col 39..41, Row 29..33)
   for (let r = 29; r <= 33; r++) {
     for (let c = 39; c <= 41; c++) {
       detailGrid[r][c] = TILE_STONE_BRIDGE;
       collisionGrid[r][c] = 0; // Bridge deck is open and walkable across water
+    }
+  }
+
+  // Eastern Footbridge across Crystal Creek River to Highland Stairs (Col 52..53, Row 29..33)
+  for (let r = 29; r <= 33; r++) {
+    for (let c = 52; c <= 53; c++) {
+      detailGrid[r][c] = TILE_STONE_BRIDGE;
+      collisionGrid[r][c] = 0; // Footbridge deck is open and walkable across water
     }
   }
 
@@ -356,6 +379,8 @@ export function generateProceduralMap(
     sh: number = 32,
     dw: number = tileSize,
     dh: number = tileSize,
+    pixelDx?: number,
+    pixelDy?: number,
   ) => {
     structureTiles.push({
       sheet,
@@ -363,8 +388,8 @@ export function generateProceduralMap(
       sy,
       sw,
       sh,
-      dx: col * tileSize,
-      dy: row * tileSize,
+      dx: pixelDx !== undefined ? pixelDx : col * tileSize,
+      dy: pixelDy !== undefined ? pixelDy : row * tileSize,
       dw,
       dh,
     });
@@ -382,6 +407,8 @@ export function generateProceduralMap(
     dw: number = tileSize,
     dh: number = tileSize,
     sway: boolean = false,
+    pixelDx?: number,
+    pixelDy?: number,
   ) => {
     overheadTiles.push({
       sheet,
@@ -389,98 +416,57 @@ export function generateProceduralMap(
       sy,
       sw,
       sh,
-      dx: col * tileSize,
-      dy: row * tileSize,
+      dx: pixelDx !== undefined ? pixelDx : col * tileSize,
+      dy: pixelDy !== undefined ? pixelDy : row * tileSize,
       dw,
       dh,
       sway,
     });
   };
 
-  // ── BUILD TOWNHALL MANOR (Cols 37..42, Rows 42..45) ──
-  // Layer 4: Foundation, Ashlar Stone Walls, Windows & Grand Arched Entrance
-  // Row 45: Foundation & Entrances
-  addStructTile("wall", 32, 96, 37, 45); // Left stone quoin corner
-  addStructTile("wall", 64, 96, 38, 45); // Ashlar stone wall
-  addStructTile("struct", 64, 416, 39, 45); // Arched wooden door (left)
-  addStructTile("struct", 96, 416, 40, 45); // Arched wooden door (right)
-  addStructTile("wall", 64, 64, 41, 45); // Leaded glass window wall
-  addStructTile("wall", 96, 96, 42, 45); // Right stone quoin corner
+  // ── BUILD TOWNHALL MANOR (Cols 32..36, Rows 42..45) ──
+  // Authentic Soppycraft Manor (pack_house_001.png, 85x63 native, scaled 3x)
+  // Layer 5 (Roof): sx:0, sy:0, sw:85, sh:34 -> dw:255, dh:102 (drawForeground ABOVE player)
+  // Layer 4 (Base): sx:0, sy:34, sw:85, sh:29 -> dw:255, dh:87 (draw under player)
+  const manorDx = 32 * tileSize;
+  const manorDy = 42 * tileSize;
+  addOverheadTile("house1", 0, 0, 32, 42, 85, 34, 255, 102, false, manorDx, manorDy);
+  addStructTile("house1", 0, 34, 32, 42, 85, 29, 255, 87, manorDx, manorDy + 102);
 
-  // Row 44: Mid Wall & Upper Windows
-  addStructTile("wall", 32, 64, 37, 44);
-  addStructTile("wall", 64, 64, 38, 44); // Stained glass window
-  addStructTile("struct", 64, 384, 39, 44); // Archway top left
-  addStructTile("struct", 96, 384, 40, 44); // Archway top right
-  addStructTile("wall", 64, 64, 41, 44); // Stained glass window
-  addStructTile("wall", 96, 64, 42, 44);
-
-  // Row 43: Cornice & Corbel Trim
-  for (let c = 37; c <= 42; c++) {
-    addStructTile("wall", 64, 32, c, 43);
+  // Solid foundation collision: Rows 43..44, Cols 32..36 (Row 45 is the open front porch deck)
+  for (let r = 43; r <= 44; r++) {
+    for (let c = 32; c <= 36; c++) {
+      collisionGrid[r][c] = 1025;
+    }
   }
 
-  // Layer 5: Overhead Gabled Slate Roof
-  // Row 43: Eaves Overhang
-  addOverheadTile("struct", 32, 160, 37, 43); // Left roof eave
-  for (let c = 38; c <= 41; c++) {
-    addOverheadTile("struct", 64, 160, c, 43);
-  }
-  addOverheadTile("struct", 128, 160, 42, 43); // Right roof eave
+  // ── BUILD HARBOR OUTPOST GUARDHOUSE (Cols 25..28, Rows 43..45) ──
+  // Authentic Soppycraft Guardhouse (pack_house_002.png, 60x47 native, scaled 3x)
+  const outpostDx = 25 * tileSize;
+  const outpostDy = 43 * tileSize;
+  addOverheadTile("house2", 0, 0, 25, 43, 60, 24, 180, 72, false, outpostDx, outpostDy);
+  addStructTile("house2", 0, 24, 25, 43, 60, 23, 180, 69, outpostDx, outpostDy + 72);
 
-  // Row 42: Upper Slate Roof
-  addOverheadTile("struct", 32, 144, 37, 42);
-  for (let c = 38; c <= 41; c++) {
-    addOverheadTile("struct", 64, 144, c, 42);
-  }
-  addOverheadTile("struct", 128, 144, 42, 42);
-
-  // Row 41: Slate Roof Ridge & Stone Chimney
-  addOverheadTile("struct", 32, 128, 37, 41);
-  addOverheadTile("struct", 64, 128, 38, 41);
-  addOverheadTile("struct", 64, 128, 39, 41);
-  addOverheadTile("struct", 64, 128, 40, 41);
-  addOverheadTile("wall", 64, 0, 41, 41); // Stone Chimney
-  addOverheadTile("struct", 128, 128, 42, 41);
-
-  // ── BUILD HARBOR OUTPOST GUARDHOUSE (Cols 30..33, Rows 44..46) ──
-  // Layer 4: Fortified Stone Wall & Oak Door
-  addStructTile("wall", 32, 192, 30, 46);
-  addStructTile("struct", 64, 96, 31, 46); // Reinforced Oak Door
-  addStructTile("wall", 64, 192, 32, 46); // Arrow Slit Wall
-  addStructTile("wall", 96, 192, 33, 46);
-
-  addStructTile("wall", 32, 192, 30, 45);
-  addStructTile("wall", 64, 192, 31, 45);
-  addStructTile("wall", 64, 192, 32, 45);
-  addStructTile("wall", 96, 192, 33, 45);
-
-  // Layer 5: Overhead Stone Crenellated Battlements
-  for (let c = 30; c <= 33; c++) {
-    addOverheadTile("wall", 64, 0, c, 44);
+  // Solid collision for Outpost Guardhouse
+  for (let r = 44; r <= 45; r++) {
+    for (let c = 25; c <= 28; c++) {
+      collisionGrid[r][c] = 1025;
+    }
   }
 
-  // ── BUILD SILAS'S WOODLAND TIMBER COTTAGE (Cols 46..49, Rows 45..47) ──
-  // Layer 4: Timber Walls & Wooden Door
-  addStructTile("struct", 32, 64, 46, 47);
-  addStructTile("struct", 64, 96, 47, 47); // Cottage Wooden Door
-  addStructTile("struct", 64, 64, 48, 47); // Cozy Cottage Window
-  addStructTile("struct", 96, 64, 49, 47);
+  // ── BUILD SILAS'S WOODLAND TIMBER COTTAGE (Cols 45..48, Rows 43..45) ──
+  // Authentic Soppycraft Cottage (pack_house_004.png, 58x53 native, scaled 3x)
+  const silasDx = 45 * tileSize;
+  const silasDy = 43 * tileSize;
+  addOverheadTile("house4", 0, 0, 45, 43, 58, 28, 174, 84, false, silasDx, silasDy);
+  addStructTile("house4", 0, 28, 45, 43, 58, 25, 174, 75, silasDx, silasDy + 84);
 
-  for (let c = 46; c <= 49; c++) {
-    addStructTile("struct", 64, 64, c, 46);
+  // Solid collision for Silas Cottage
+  for (let r = 44; r <= 45; r++) {
+    for (let c = 45; c <= 48; c++) {
+      collisionGrid[r][c] = 1025;
+    }
   }
-
-  // Layer 5: Overhead Shingle Roof
-  addOverheadTile("struct", 32, 160, 46, 45);
-  addOverheadTile("struct", 64, 160, 47, 45);
-  addOverheadTile("struct", 64, 160, 48, 45);
-  addOverheadTile("struct", 128, 160, 49, 45);
-
-  addOverheadTile("struct", 32, 128, 46, 44);
-  addOverheadTile("struct", 64, 128, 47, 44);
-  addOverheadTile("struct", 64, 128, 48, 44);
-  addOverheadTile("struct", 128, 128, 49, 44);
 
   // ── BUILD HIGHLAND SACRED SUN ALTAR (Cols 52..54, Rows 14..15) ──
   // Authentic Circular Rune Stone Altar from tx_props.png (sx:340, sy:266, sw:107, sh:94)
@@ -514,31 +500,31 @@ export function generateProceduralMap(
       name: "Oakhaven Town Hall Manor",
       type: "cottage",
       cottageIndex: 0,
-      col: 37,
+      col: 32,
       row: 42,
-      widthPx: 6 * tileSize,
-      heightPx: 4 * tileSize,
-      solidBox: { x: 37 * tileSize + 10, y: 44 * tileSize + 10, w: 6 * tileSize - 20, h: 2 * tileSize - 10 },
+      widthPx: 255,
+      heightPx: 189,
+      solidBox: { x: 32 * tileSize + 10, y: 43 * tileSize + 10, w: 235, h: 2 * tileSize - 10 },
     },
     {
       name: "Harbor Outpost Guardhouse",
       type: "cottage",
       cottageIndex: 1,
-      col: 30,
-      row: 44,
-      widthPx: 4 * tileSize,
-      heightPx: 3 * tileSize,
-      solidBox: { x: 30 * tileSize + 8, y: 45 * tileSize + 10, w: 4 * tileSize - 16, h: 2 * tileSize - 10 },
+      col: 25,
+      row: 43,
+      widthPx: 180,
+      heightPx: 141,
+      solidBox: { x: 25 * tileSize + 8, y: 44 * tileSize + 10, w: 164, h: 2 * tileSize - 10 },
     },
     {
       name: "Silas's Timber Cottage",
       type: "cottage",
       cottageIndex: 3,
-      col: 46,
-      row: 45,
-      widthPx: 4 * tileSize,
-      heightPx: 3 * tileSize,
-      solidBox: { x: 46 * tileSize + 8, y: 46 * tileSize + 10, w: 4 * tileSize - 16, h: 2 * tileSize - 10 },
+      col: 45,
+      row: 43,
+      widthPx: 174,
+      heightPx: 159,
+      solidBox: { x: 45 * tileSize + 8, y: 44 * tileSize + 10, w: 158, h: 2 * tileSize - 10 },
     },
     {
       name: "Sacred Sun Altar",
@@ -710,20 +696,20 @@ export function generateProceduralMap(
 
     if (idx === 0) {
       // Elder Oakhaven: Townhall Manor Porch
-      px = 39 * tileSize + 20;
-      py = 46 * tileSize + 20;
+      px = 34 * tileSize + 24;
+      py = 45 * tileSize + 24;
     } else if (idx === 1) {
       // Echo the Wanderer: Arched Stone Bridge Lookout
       px = 40 * tileSize + 32;
       py = 31 * tileSize + 32;
     } else if (idx === 2) {
       // Silas the Hermit: Silas's Timber Cottage
-      px = 48 * tileSize + 20;
-      py = 47 * tileSize + 40;
+      px = 46 * tileSize + 24;
+      py = 45 * tileSize + 24;
     } else if (idx === 3) {
       // Captain Joshua: Harbor Outpost
-      px = 31 * tileSize + 32;
-      py = 47 * tileSize + 32;
+      px = 27 * tileSize + 24;
+      py = 45 * tileSize + 24;
     } else if (idx === 4) {
       // Sacred Sun Altar (Highland Terrace)
       px = 53 * tileSize + 48;
@@ -762,6 +748,9 @@ export function generateProceduralMap(
       t.sheet === "props" ? imgs.propsTileset :
       t.sheet === "plant" ? imgs.plantTileset :
       t.sheet === "stone" ? imgs.stoneTileset :
+      t.sheet === "house1" ? (imgs as Record<string, HTMLImageElement>).house1 :
+      t.sheet === "house2" ? (imgs as Record<string, HTMLImageElement>).house2 :
+      t.sheet === "house4" ? (imgs as Record<string, HTMLImageElement>).house4 :
       imgs.grassTileset;
 
     if (!img || !img.complete || img.naturalWidth === 0) return;
@@ -886,8 +875,10 @@ export function generateProceduralMap(
         const detail = detailGrid[r][col];
 
         if (detail === TILE_ROAD_COBBLESTONE) {
-          // Authentic Cobblestone King's Highway
-          if (stoneImg && stoneImg.complete) {
+          // Authentic Country Highway (Organic dirt & cobblestone path from gentle forest)
+          if (waterImg && waterImg.complete) {
+            c.drawImage(waterImg, 16, 16, 16, 16, px, py, tileSize + 1, tileSize + 1);
+          } else if (stoneImg && stoneImg.complete) {
             c.drawImage(stoneImg, 0, 0, 32, 32, px, py, tileSize + 1, tileSize + 1);
           } else {
             c.fillStyle = "#d97706";

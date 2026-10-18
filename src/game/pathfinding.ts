@@ -111,24 +111,15 @@ export const canPlayerStandAt = ({
     mapOrigin,
   );
 
-const isStandableTile = ({
+export const isStandableTile = ({
   tile,
   collisionsMap,
-  mapOrigin,
-  playerSize,
 }: {
   tile: Tile;
   collisionsMap: number[][];
-  mapOrigin: Point;
-  playerSize: { width: number; height: number };
-}) =>
-  isWalkableTile(collisionsMap, tile) &&
-  canPlayerStandAt({
-    center: tileToWorldCenter(tile, mapOrigin),
-    collisionsMap,
-    mapOrigin,
-    playerSize,
-  });
+  mapOrigin?: Point;
+  playerSize?: { width: number; height: number };
+}) => isWalkableTile(collisionsMap, tile);
 
 export const nearestStandableTile = ({
   tile,

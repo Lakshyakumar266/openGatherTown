@@ -380,6 +380,9 @@ function App() {
       plantTileset: "/tiles/cainos/tx_plant.png",
       shadowPlantTileset: "/tiles/cainos/tx_shadow_plant.png",
       waterTileset: "/tiles/gentle_forest/gentle forest v01.png",
+      house1: "/tiles/soppycraft/Sprites/pack_house_001.png",
+      house2: "/tiles/soppycraft/Sprites/pack_house_002.png",
+      house4: "/tiles/soppycraft/Sprites/pack_house_004.png",
     };
 
     if (activeMapType === "legacy") {
@@ -652,7 +655,7 @@ function App() {
         const playerSize = () => ({ width: player.width, height: player.height });
         const mapOrigin = () => (activeMapType === "new" ? { x: 0, y: 0 } : offset);
 
-        const wouldCollide = (delta: Point) => {
+        const checkObstacle = (delta: Point): "none" | "static" | "dynamic" => {
           const next = {
             x: player.position.x + delta.x,
             y: player.position.y + delta.y,
@@ -666,11 +669,11 @@ function App() {
           for (const b of activeBoundaries) {
             if (b.position.x < pxMin || b.position.x > pxMax || b.position.y < pyMin || b.position.y > pyMax) continue;
             if (checkCollision(hitbox, { position: b.position, width: b.width, height: b.height }))
-              return true;
+              return "static";
           }
           for (const other of allPlayers) {
             if (other === player) continue;
-            if (checkCollision(hitbox, other)) return true;
+            if (checkCollision(hitbox, other)) return "static";
           }
           for (const animal of animals) {
             const animalBox = {
@@ -681,10 +684,12 @@ function App() {
               width: animal.width - 4,
               height: animal.height - 4,
             };
-            if (checkCollision(hitbox, animalBox)) return true;
+            if (checkCollision(hitbox, animalBox)) return "dynamic";
           }
-          return false;
+          return "none";
         };
+
+        const wouldCollide = (delta: Point) => checkObstacle(delta) !== "none";
 
         const movePlayer = (delta: Point) => {
           player.position.x += delta.x;
@@ -741,7 +746,13 @@ function App() {
           } else {
             player.image = move.x > 0 ? player.sprites!.right : player.sprites!.left;
           }
-          if (wouldCollide(move)) {
+          const obs = checkObstacle(move);
+          if (obs === "dynamic") {
+            // Animal in front: wait politely for animal to move, don't abort clickPath!
+            player.moving = false;
+            return true;
+          }
+          if (obs === "static") {
             clickPath = [];
             player.moving = false;
             return false;

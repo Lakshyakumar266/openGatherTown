@@ -205,48 +205,62 @@ To achieve state-of-the-art 2.5D visual excellence, the engine was re-architecte
 1. **Layer 1: Ground Base (`grid: number[][]`)**
    - Pure lush green turf (`tx_grass.png` col 0, row 0).
    - Yellow and white wildflower meadows (`tx_grass.png` cols 1-2, row 0).
-   - Deep crystalline water basin with animated specular ripples.
+   - Highland Plateau emerald meadow (`TILE_HIGHLAND_GRASS`).
+   - Deep crystalline water basin (`gentle forest` autotiles) with animated specular ripples.
    - Ancient perimeter border woods preventing camera exposure.
 2. **Layer 2: Ground Detail & Pathways (`detailGrid: number[][]`)**
-   - Cobblestone King's Highway (`tx_stone.png` col 0, row 0).
-   - Arched stone bridge deck (`tx_stone.png` col 1, row 0) with side stone parapets.
-   - Organic translucent water shoreline foam borders smoothly blending land into water.
+   - Authentic Country Highway & Boulevard: Organic dirt and cobblestone path (`gentle forest` `sx: 16, sy: 16`).
+   - Arched stone bridge deck (`tx_stone.png` col 1, row 0) with side stone parapets across Crystal Creek River.
+   - Eastern Footbridge (`col 52..53, row 29..33`) providing direct walkable access to the Grand Stairs.
+   - North Riverbank Connector Path (`row 24, col 40..52`) connecting the Boulevard and the Stairs Road.
+   - Organic shoreline bank autotiles (`gentle forest` 16x16 autotiles) smoothly blending terrain into water.
 3. **Layer 3: Cliffs & Carved Stone Stairs (`cliffGrid: number[][]`)**
    - Highland Plateau Stone Retaining Wall:
-     - Top wall coping (`tx_wall.png` sx=32, sy=0).
-     - Vertical stone retaining wall face (`tx_wall.png` sx=32, sy=32).
-     - NW and NE wall corners (`tx_wall.png` sx=0, 96, sy=0).
-   - Wide Carved Stone Stairs (`tx_struct.png` rows 10-11, cols 1-4):
-     - Left handrail (`sx: 32, sy: 320, sw: 32, sh: 64`).
-     - Center carved stone steps (`sx: 64, sy: 320` and `sx: 96, sy: 320`).
-     - Right handrail (`sx: 128, sy: 320, sw: 32, sh: 64`).
-     - Retaining wall is solid (`collisionGrid = 1025`), while the stairs are open and walkable (`collisionGrid = 0`).
+     - North parapet coping (`tx_wall.png` `[416, 32, 32, 32]`).
+     - NW and NE corners (`tx_wall.png` `[384, 32, 32, 32]`, `[448, 32, 32, 32]`).
+     - West and East retaining wall parapets (`tx_wall.png` `[288, 64]`, `[320, 64]`).
+     - South 2-tier cliff wall: Upper Coping Row (`tx_wall.png` `[64, 96]`) and Lower Brick Wall Face (`tx_wall.png` `[64, 128]`).
+     - SW and SE outer corner coping and face tiles.
+   - Grand Weathered Stone Stairs (`tx_struct.png` cols 52..53, rows 21..22):
+     - Left column: `sx: 32`, top step `sy: 160`, bottom step `sy: 224`.
+     - Right column: `sx: 64`, top step `sy: 160`, bottom step `sy: 224`.
+     - Embedded directly into south retaining wall face. Zero floating stairs exist on open terrain.
+     - Stairs are rendered on Layer 3 (before player), so the character walks ON TOP of steps, never behind.
 4. **Layer 4: Building Walls, Props & Tree Trunks (`structureTiles: TilePlacement[]`)**
-   - **Grand Oakhaven Townhall Manor** (Cols 37..42, Rows 42..45):
-     - Assembled tile-by-tile: Ashlar stone wall blocks, arched double wooden entrance doors (`tx_struct.png` sx=64..96, sy=416), stained glass window walls, and stone corbel cornices.
-   - **Harbor Outpost Guardhouse** (Cols 30..33, Rows 44..46):
-     - Fortified stone walls with reinforced oak door and arrow slits.
-   - **Silas's Timber Cottage** (Cols 46..49, Rows 45..47):
-     - Rustic timber corner posts, cottage wooden door, and cottage windows.
+   - **Grand Oakhaven Townhall Manor** (Cols 32..36, Rows 42..45):
+     - Authentic Soppycraft Manor (`pack_house_001.png`, 85x63 native scaled 3x).
+     - Layer 4 base walls and wooden porch deck (`sx: 0, sy: 34, sw: 85, sh: 29` -> `dw: 255, dh: 87`).
+     - Open front porch allows character to walk right up to front door.
+   - **Harbor Outpost Guardhouse** (Cols 25..28, Rows 43..45):
+     - Authentic Soppycraft Guardhouse (`pack_house_002.png`, 60x47 native scaled 3x).
+     - Layer 4 fortified timber/stone base walls and door (`sx: 0, sy: 24, sw: 60, sh: 23` -> `dw: 180, dh: 69`).
+   - **Silas's Woodland Timber Cottage** (Cols 45..48, Rows 43..45):
+     - Authentic Soppycraft Cottage (`pack_house_004.png`, 58x53 native scaled 3x).
+     - Layer 4 rustic timber base walls, window and door (`sx: 0, sy: 28, sw: 58, sh: 25` -> `dw: 174, dh: 75`).
    - **Highland Sacred Sun Altar** (Cols 52..55, Rows 14..15):
-     - Stone dais platform, carved sun altar table (`tx_props.png`), and monolith columns (`tx_struct.png`).
+     - Authentic circular rune stone altar from `tx_props.png` (`sx: 340, sy: 266, sw: 107, sh: 94`) flanked by monolith columns.
    - **Village Props & Lake Pier**:
-     - Circular Stone Well (`tx_props.png` sx=416, sy=352, sw=64, sh=64).
-     - Town Water Pump & Stone Trough (`tx_props.png` sx=96, sy=0).
-     - Forgotten Relic Chest (`tx_props.png` sx=96, sy=32).
-     - Market cider barrels & crates (`tx_props.png` sx=32, sy=0).
-     - Carved Stone Benches (`tx_props.png` sx=288, sy=0).
-     - Whispering Lake Wooden Boat Dock (`tx_struct.png` sx=32, sy=32).
+     - Circular Stone Well (`tx_props.png` `sx: 420, sy: 359, sw: 55, sh: 49`).
+     - Town Water Pump & Trough (`tx_props.png` `sx: 96, sy: 0`).
+     - Forgotten Relic Chest (`tx_props.png` `sx: 96, sy: 32`).
+     - Market cider barrels & produce crates (`tx_props.png` `sx: 32, sy: 0`).
+     - Carved Stone Benches (`tx_props.png` `sx: 288, sy: 0`).
+     - Whispering Lake Wooden Boat Dock (`tx_struct.png` `sx: 32, sy: 32`).
    - **Tree Trunks with Ground Contact Shadows**:
      - Contact drop shadow ellipse (`rgba(10, 20, 15, 0.4)`).
-     - Rooted oak, pine, and birch trunks (`tx_plant.png`).
+     - Rooted oak, pine, and autumn trunks (`tx_plant.png`).
 5. **Layer 5: Overhead Roofs & Canopies (`overheadTiles: TilePlacement[]`)**
    - Rendered in `drawForeground` **on top of the player** with authentic depth:
-     - Townhall Gabled Slate Roof: sloped eaves, slate center tiles, roof ridge, and stone chimney.
-     - Guardhouse Crenellated Stone Battlements.
-     - Silas's Cottage Wooden Shingle Roof.
+     - Townhall Gabled Slate Roof: `pack_house_001.png` upper roof (`sx: 0, sy: 0, sw: 85, sh: 34` -> `dw: 255, dh: 102`).
+     - Guardhouse Roof: `pack_house_002.png` (`sx: 0, sy: 0, sw: 60, sh: 24` -> `dw: 180, dh: 72`).
+     - Silas's Cottage Roof & Chimney: `pack_house_004.png` (`sx: 0, sy: 0, sw: 58, sh: 28` -> `dw: 174, dh: 84`).
      - Lush tree canopy crowns (`tx_plant.png`) with gentle animated wind sway.
      - Player can freely walk behind roofs and under tree canopies with pixel-perfect occlusion.
+
+### 8.3 Reliable Click-to-Move Pathfinding Architecture
+- **Static vs Dynamic Obstacle Decoupling:** When a roaming animal (rabbit, deer, fox) steps in front of the player, movement pauses without wiping `clickPath`. Once the critter moves, path traversal resumes automatically.
+- **Walkable Tile A\* Resolution:** Tile navigation directly checks `isWalkableTile(collisionGrid, tile) === 0`, ensuring narrow pathways, stairs, and bridges never suffer false path rejections.
+- **Start Tile Robustness:** Path calculations allow players standing near boundary edges to immediately pathfind without start-tile bounding box rejections.
 
 ### 8.3 Double-Click Pathfinding & Collision Integration
 - Previously, double-click pathfinding queried the legacy 40×70 collision map, resulting in empty paths or blocked navigation in the new 80×80 procedural map.
