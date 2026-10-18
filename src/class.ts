@@ -49,7 +49,17 @@ export class Sprite {
         this.moving = moving;
         this.sprites = sprites;
     }
+
     draw() {
+        // Soft Ground Contact Drop Shadow
+        this.ctx.save();
+        this.ctx.fillStyle = "rgba(10, 20, 15, 0.35)";
+        this.ctx.beginPath();
+        const shadowX = this.position.x + this.width / 2;
+        const shadowY = this.position.y + this.height - 3;
+        this.ctx.ellipse(shadowX, shadowY, this.width * 0.35, 5, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.restore();
 
         this.ctx.drawImage(
             this.image,
@@ -120,14 +130,18 @@ export class Boundary {
     constructor({
         ctx,
         position,
+        width = Boundary.width,
+        height = Boundary.height,
     }: {
         ctx: CanvasRenderingContext2D;
         position: { x: number; y: number };
+        width?: number;
+        height?: number;
     }) {
         this.ctx = ctx;
         this.position = position;
-        this.width = Boundary.width;
-        this.height = Boundary.height;
+        this.width = width;
+        this.height = height;
     }
 
     draw() {

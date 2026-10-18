@@ -412,13 +412,9 @@ export function GameHUD({
   }, []);
 
   const closeAll = useCallback(() => {
-    setShowSettings((s) => {
-      setShowControls((c) => {
-        if (s || c) audioManager.playClose();
-        return false;
-      });
-      return false;
-    });
+    setShowSettings(false);
+    setShowControls(false);
+    audioManager.playClose();
   }, []);
 
   // Global key listener for ? and Escape

@@ -1,27 +1,32 @@
-# Execution Steps: OpenGather Layered World & RPG Expansion
+# Execution Steps: OpenGather Itch.io Assets & Oval Island Architecture
 
-## Phase 15: Layered Map Architecture & World Border
-- [x] Step 15.1: Implement layered terrain model (Sea/Ocean base border, Grass/Island contours, Footpath networks, Prefab multi-tile structures: Houses, Stone Wells, Fences, Wooden Bridges/Docks, Chests, Barrels).
-- [x] Step 15.2: Ensure multi-tile structures (houses, 2-tile trees) are placed as cohesive compound structures with exact vertical bonding (preventing tree tops/trunks from being disjointed).
-- [x] Step 15.3: Add deep sea border padding around world edges so camera never exposes empty background void.
+## Phase 21: Asset Migration & Cleanup
+- [x] Step 21.1: Demolish and eradicate Kenney RPG pack (`public/tiles/RPGpack_sheet_2X.png`).
+- [x] Step 21.2: Download official top-down RPG asset packs from itch.io (`cainos_top_down_basic`, `soppycraft_forest_houses`, `gentle_forest`) and unpack to `public/tiles/cainos/`, `public/tiles/soppycraft/`, `public/tiles/gentle_forest/`.
+- [x] Step 21.3: Update `docs/plan/tasks.md` and `docs/plan/steps.md` to reflect the new architecture.
 
-## Phase 16: Fluid Movement Engine & Spawn Fixes
-- [x] Step 16.1: Refactor movement loop to use vector-based velocity with wall-sliding (separate X and Y collision tests) so WASD and Arrow keys (including 'D') operate smoothly without sticking.
-- [x] Step 16.2: Fix legacy world spawn coordinates to safe dry land on the cottage path (`x: 730, y: 480`) and isolate localStorage position saves per realm.
+## Phase 22: Clean Grass, Oval Island & Collision Polish
+- [x] Step 22.1: Remove `minimap-coords-row` from `MiniMap.tsx` and `MiniMap.css`.
+- [x] Step 22.2: Implement strict player-animal bounding box collision in `src/App.tsx` and smooth avoidance steering in `src/game/animals.ts` so player cannot overlap with animals.
+- [ ] Step 22.3: Upgrade `public/sandbox.html` to load and train with the new itch.io tilesets (`cainos` & `soppycraft`):
+  - Calibrate pure interior grass tiles (`TX Tileset Grass.png`) to ensure 0 brown edge leaks.
+  - Test and verify oval island elevation falloff and shoreline bitmask autotiling.
+  - Test and verify modular house placement (walls, roofs, chimneys, doors) and prop alignment.
 
-## Phase 17: Bottom-Left MiniMap & Expandable World Map Modal
-- [x] Step 17.1: Create `MiniMap.tsx` and `MiniMap.css` pinned to bottom-left with real-time player indicator, terrain colors, and POI markers.
-- [x] Step 17.2: Add click/key ('M') toggle to open high-resolution Expandable World Map with region labels, quest markers, and legend.
+## Phase 23: Port WFC Oval Island & Itch.io Tiles to Main Engine
+- [ ] Step 23.1: Refactor `src/game/mapGenerator.ts` to utilize the new itch.io tileset atlas (`cainos` + `soppycraft`):
+  - Ground layer with oval island mask and pure grass.
+  - Shoreline autotiling bordering ocean water.
+  - Stone path connections leading between houses, wells, and docks.
+  - Multi-tile house structures and props (wells, chests, barrels, trees) with proper vertical bonding and collision boxes.
+- [ ] Step 23.2: Update texture loader in `src/App.tsx` to load `public/tiles/cainos/` and `public/tiles/soppycraft/` instead of Kenney RPGpack.
 
-## Phase 18: Animated NPCs & Lively World Population
-- [x] Step 18.1: Implement animated idle bobbing and player-facing orientation for NPCs (Elder Oakhaven, Echo, Silas the Hermit, Captain Joshua).
-- [x] Step 18.2: Add ambient speech/interaction cues, animated swaying trees, falling leaf particles, and roaming wildlife (rabbits, deer, foxes, butterflies).
-
-## Phase 19: Epic Multi-Chapter Storyline & Quests
-- [x] Step 19.1: Expand `src/game/story.ts` with "The Chronicles of OpenGather: The Sunken Core" multi-act questline.
-- [x] Step 19.2: Implement rich quest items (Explorer's Compass, Ancient Journal, Shimmering Water Sigil, Runic Key, Amber Core) and branch dialogues.
-
-## Phase 20: Build Verification, Stress QA & Git Commits
-- [x] Step 20.1: Run `bun run build` and ensure 0 TypeScript or Vite warnings/errors.
-- [x] Step 20.2: Conduct browser subagent QA testing all movement directions, dialogue, minimap, and world aesthetics.
-- [x] Step 20.3: Git commit with comprehensive log.
+## Phase 24: Verification, Quality Assurance & Git Milestone
+- [ ] Step 24.1: Build test with `bun run build` to confirm 0 TypeScript / bundling errors.
+- [ ] Step 24.2: Inspect live world using browser subagent at `http://localhost:5173/`, confirming:
+  - Natural oval island surrounded by ocean.
+  - Clean grass with 0 brown edges.
+  - Flawless house structures (no glitched roofs or walls).
+  - No coordinate row on minimap.
+  - Player cannot walk through or overlap animals.
+- [ ] Step 24.3: Git commit all changes with structured log.

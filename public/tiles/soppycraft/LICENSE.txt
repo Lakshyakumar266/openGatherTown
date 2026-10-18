@@ -1,0 +1,18 @@
+SoppyCraft Asset License
+========================
+
+These assets are licensed for use under the following terms:
+
+You may:
+- Use these assets in personal and commercial projects
+- Modify them to fit your needs
+- Include them in your games, apps, videos, or other media
+
+You may not:
+- Resell or redistribute these files as-is, even if modified
+- Include them in asset packs, templates, or marketplaces
+- Use them for training AI models or data scraping
+
+Attribution:
+- Not required, but appreciated. Feel free to credit "SoppyCraft" or link to https://soppycraft.itch.io
+

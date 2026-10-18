@@ -1,6 +1,15 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import type { InteractablePOI } from "../game/story";
 import type { ProceduralMap } from "../game/mapGenerator";
+import {
+  TILE_WATER_DEEP,
+  TILE_WATER_BANK_N,
+  TILE_WATER_CORNER_SE,
+  TILE_CLIFF_TOP_N,
+  TILE_CLIFF_CORNER_SE,
+  TILE_CLIFF_STAIRS,
+  TILE_HIGHLAND_GRASS,
+} from "../game/mapGenerator";
 import { audioManager } from "../game/audioManager";
 import "./MiniMap.css";
 
@@ -31,14 +40,15 @@ export function MiniMap({
   const miniCanvasRef = useRef<HTMLCanvasElement>(null);
   const fullCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Derive active region name from player coordinates
+  // Derive dynamic region name from player coordinates
   const currentRegion = useMemo(() => {
     const { x, y } = playerPos;
     if (mapType === "new") {
       if (y < 1600 && x < 2600) return "⚡ Sunken Citadel Sanctum";
-      if (x > 2600 && y >= 1400 && y < 2700) return "🌲 Whispering Deepwoods";
-      if (x < 1800 && y >= 1600 && y < 2900) return "🌲 Hermit's Ancient Grove";
-      if (y >= 2900) return "🏡 Oakhaven Hamlet";
+      if (y < 1600 && x >= 2600) return "🏔️ Highland Crag & Mountain Ridge";
+      if (x < 2400 && y >= 1600 && y < 3100) return "🌊 Whispering Pond & Shore";
+      if (x >= 2400 && y >= 1600 && y < 3100) return "🌲 Whispering Deepwoods";
+      if (y >= 3100) return "🏡 Oakhaven Village & Town Manor";
       return "🌿 Wildflower Glade Highway";
     } else {
       if (y < 200) return "🌊 Whispering Shore";
@@ -68,7 +78,7 @@ export function MiniMap({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isExpanded]);
 
-  // Render terrain and pins onto given canvas context
+  // Render authentic terrain, buildings, and pins onto canvas
   const renderMapCanvas = useCallback(
     (
       c: CanvasRenderingContext2D,
@@ -80,41 +90,69 @@ export function MiniMap({
 
       // 1. Draw base terrain background
       if (mapType === "new" && proceduralMap) {
-        const { cols, rows, grid } = proceduralMap;
+        const { cols, rows, grid, compoundStructures } = proceduralMap;
         const cellW = cvWidth / cols;
         const cellH = cvHeight / rows;
 
         for (let r = 0; r < rows; r++) {
           for (let col = 0; col < cols; col++) {
             const tileIdx = grid[r]?.[col] ?? 0;
-            // Palette mapping for radar representation across WFC biomes
+
+            // Accurate Biome Color Mapping
             if (tileIdx === 17) {
-              c.fillStyle = "#0c2818"; // Ancient Perimeter Forest (dense border)
+              c.fillStyle = "#064e3b"; // Ancient Perimeter Forest (dense dark pine)
+            } else if (tileIdx === TILE_WATER_DEEP) {
+              c.fillStyle = "#0284c7"; // Deep Sapphire Water
+            } else if (tileIdx >= TILE_WATER_BANK_N && tileIdx <= TILE_WATER_CORNER_SE) {
+              c.fillStyle = "#38bdf8"; // Whispering Pond Shoreline
+            } else if (tileIdx >= TILE_CLIFF_TOP_N && tileIdx <= TILE_CLIFF_CORNER_SE) {
+              c.fillStyle = "#475569"; // Mountain Cliff Rock Face
+            } else if (tileIdx === TILE_CLIFF_STAIRS) {
+              c.fillStyle = "#cbd5e1"; // Carved Stone Mountain Ramp
+            } else if (tileIdx === TILE_HIGHLAND_GRASS) {
+              c.fillStyle = "#15803d"; // Highland Plateau Emerald
             } else if (tileIdx === 4) {
-              c.fillStyle = "#d1a054"; // Cobblestone Highway Network
+              c.fillStyle = "#d97706"; // Cobblestone Highway
             } else if (tileIdx === 5 || (tileIdx >= 6 && tileIdx <= 14)) {
-              c.fillStyle = "#8492a6"; // Sunken Citadel Slate & Stone Walls
+              c.fillStyle = "#94a3b8"; // Sunken Citadel Slate & Walls
             } else if (tileIdx === 15 || tileIdx === 16) {
-              c.fillStyle = "#a0aec0"; // Stone Stairs & Gateways
+              c.fillStyle = "#cbd5e1"; // Stone Stairs & Gateways
             } else if (tileIdx === 3) {
-              c.fillStyle = "#1e4d2b"; // Whispering Forest Understory
+              c.fillStyle = "#166534"; // Forest Understory
             } else if (tileIdx === 1 || tileIdx === 2) {
-              c.fillStyle = "#48bb78"; // Wildflower Glade Meadows
+              c.fillStyle = "#4ade80"; // Wildflower Glade Meadows
             } else {
-              c.fillStyle = "#2d7a4d"; // Lush Open Grasslands
+              c.fillStyle = "#22c55e"; // Lush Open Grasslands
             }
-            c.fillRect(col * cellW, r * cellH, cellW + 0.5, cellH + 0.5);
+
+            c.fillRect(col * cellW, r * cellH, cellW + 0.6, cellH + 0.6);
+          }
+        }
+
+        // Draw compound structure footprints on map (houses, outposts, manors)
+        if (compoundStructures) {
+          for (const s of compoundStructures) {
+            if (s.type === "cottage" || s.name.toLowerCase().includes("manor") || s.name.toLowerCase().includes("outpost")) {
+              const sx = ((s.col * 64) / worldWidth) * cvWidth;
+              const sy = ((s.row * 64) / worldHeight) * cvHeight;
+              const sw = (s.widthPx / worldWidth) * cvWidth;
+              const sh = (s.heightPx / worldHeight) * cvHeight;
+
+              c.fillStyle = "#b45309"; // Warm timber roof
+              c.fillRect(sx, sy, Math.max(sw, 4), Math.max(sh, 4));
+              c.strokeStyle = "#fef08a";
+              c.lineWidth = 0.5;
+              c.strokeRect(sx, sy, Math.max(sw, 4), Math.max(sh, 4));
+            }
           }
         }
       } else {
         // Legacy world representation
-        c.fillStyle = "#15803d"; // Lush grass
+        c.fillStyle = "#15803d";
         c.fillRect(0, 0, cvWidth, cvHeight);
-        // Sea border at top
-        c.fillStyle = "#1e3a8a";
+        c.fillStyle = "#0284c7";
         c.fillRect(0, 0, cvWidth, cvHeight * 0.18);
-        // Pathway
-        c.fillStyle = "#ca8a04";
+        c.fillStyle = "#d97706";
         c.fillRect(cvWidth * 0.35, cvHeight * 0.25, cvWidth * 0.15, cvHeight * 0.5);
       }
 
@@ -126,11 +164,11 @@ export function MiniMap({
         c.save();
         if (poi.type === "npc") {
           c.fillStyle = "#38bdf8"; // Cyan for friendly NPCs
-          c.shadowColor = "rgba(56, 189, 248, 0.8)";
+          c.shadowColor = "rgba(56, 189, 248, 0.9)";
           c.shadowBlur = 8;
         } else {
-          c.fillStyle = "#fbbf24"; // Amber for shrines / objects
-          c.shadowColor = "rgba(251, 191, 36, 0.8)";
+          c.fillStyle = "#fbbf24"; // Radiant amber for shrines / chests
+          c.shadowColor = "rgba(251, 191, 36, 0.9)";
           c.shadowBlur = 8;
         }
 
@@ -150,20 +188,20 @@ export function MiniMap({
         c.restore();
       }
 
-      // 3. Draw Player Indicator
+      // 3. Draw Player Indicator (Gilded Needle with Vision Cone)
       const pCanvasX = (playerPos.x / worldWidth) * cvWidth;
       const pCanvasY = (playerPos.y / worldHeight) * cvHeight;
 
       c.save();
-      // Pulsing outer ripple
-      const pulse = (Date.now() % 1500) / 1500;
+      // Pulsing outer sonar wave
+      const pulse = (Date.now() % 1600) / 1600;
       c.beginPath();
-      c.arc(pCanvasX, pCanvasY, (isFull ? 12 : 8) + pulse * 6, 0, Math.PI * 2);
+      c.arc(pCanvasX, pCanvasY, (isFull ? 14 : 9) + pulse * 8, 0, Math.PI * 2);
       c.strokeStyle = `rgba(245, 158, 11, ${1 - pulse})`;
-      c.lineWidth = 1.5;
+      c.lineWidth = 1.6;
       c.stroke();
 
-      // Golden central diamond with facing angle
+      // Heading orientation angle
       c.translate(pCanvasX, pCanvasY);
       let angle = 0;
       if (playerFacing === "up") angle = -Math.PI / 2;
@@ -172,23 +210,35 @@ export function MiniMap({
       else if (playerFacing === "right") angle = 0;
       c.rotate(angle);
 
-      c.fillStyle = "#f59e0b";
+      // Vision field subtle sweep cone
+      c.fillStyle = "rgba(245, 158, 11, 0.16)";
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.arc(0, 0, isFull ? 28 : 16, -Math.PI / 5, Math.PI / 5);
+      c.closePath();
+      c.fill();
+
+      // Golden central arrow needle
+      c.fillStyle = "#fbbf24";
+      c.strokeStyle = "#78350f";
+      c.lineWidth = 1;
       c.shadowColor = "rgba(245, 158, 11, 0.9)";
       c.shadowBlur = 10;
       c.beginPath();
-      const s = isFull ? 8 : 5.5;
-      c.moveTo(s * 1.5, 0);
-      c.lineTo(-s, -s * 0.8);
-      c.lineTo(-s * 0.4, 0);
-      c.lineTo(-s, s * 0.8);
+      const s = isFull ? 9 : 6;
+      c.moveTo(s * 1.6, 0);
+      c.lineTo(-s, -s * 0.75);
+      c.lineTo(-s * 0.3, 0);
+      c.lineTo(-s, s * 0.75);
       c.closePath();
       c.fill();
+      c.stroke();
       c.restore();
     },
     [mapType, proceduralMap, pois, worldWidth, worldHeight, playerPos, playerFacing],
   );
 
-  // Redraw MiniMap on movement
+  // Redraw Circular MiniMap on player update
   useEffect(() => {
     const cv = miniCanvasRef.current;
     if (!cv) return;
@@ -209,32 +259,57 @@ export function MiniMap({
 
   return (
     <>
-      {/* Bottom-Left Radar MiniMap Card */}
-      <div className="minimap-container">
+      {/* ─── Circular Brass Astrolabe Compass MiniMap HUD ─── */}
+      <div className="minimap-anchor-wrap">
+        {/* Floating Region & Coordinates Header */}
+        <div className="minimap-header-pill">
+          <span className="minimap-region-name">{currentRegion}</span>
+          <span className="minimap-coords-badge">
+            {Math.round(playerPos.x)}, {Math.round(playerPos.y)}
+          </span>
+        </div>
+
+        {/* Circular Compass Device Housing */}
         <div
-          className="minimap-card"
+          className="minimap-compass-casing"
           onClick={() => {
             audioManager.playOpen();
             setIsExpanded(true);
           }}
-          title="Click or press [M] to expand full World Map"
+          title="Click or press [M] to open full World Map"
         >
-          <canvas
-            ref={miniCanvasRef}
-            width={154}
-            height={154}
-            className="minimap-canvas"
-          />
-          <div className="minimap-radar-sweep" />
-          <div className="minimap-overlay-badge">
-            <span>🗺️</span>
-            <span>{currentRegion}</span>
+          {/* Engraved Cardinal Direction Notches */}
+          <span className="minimap-cardinal minimap-cardinal--n">N</span>
+          <span className="minimap-cardinal minimap-cardinal--e">E</span>
+          <span className="minimap-cardinal minimap-cardinal--s">S</span>
+          <span className="minimap-cardinal minimap-cardinal--w">W</span>
+
+          {/* Compass Bezel Ticks */}
+          <div className="minimap-bezel-ticks" />
+
+          {/* Circular Clipped Map Viewport */}
+          <div className="minimap-viewport">
+            <canvas
+              ref={miniCanvasRef}
+              width={160}
+              height={160}
+              className="minimap-canvas"
+            />
+            {/* Rotating Sonar Radar Sweep */}
+            <div className="minimap-radar-sweep" />
+            {/* Convex Glass Lens Sheen */}
+            <div className="minimap-glass-sheen" />
           </div>
-          <div className="minimap-expand-hint">[M] Expand ↗</div>
+
+          {/* Expand Map Action Indicator */}
+          <div className="minimap-expand-badge" title="Expand Map">
+            <span className="minimap-expand-icon">🗺️</span>
+            <span>[M]</span>
+          </div>
         </div>
       </div>
 
-      {/* Expandable Full-Screen World Map Modal */}
+      {/* ─── Expandable Full-Screen Fantasy World Map Modal ─── */}
       {isExpanded && (
         <div
           className="worldmap-backdrop"
@@ -247,15 +322,20 @@ export function MiniMap({
             className="worldmap-modal"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="worldmap-header">
               <div className="worldmap-title-group">
                 <span className="worldmap-title-icon">🧭</span>
                 <div>
                   <h3 className="worldmap-title">
-                    {mapType === "new" ? "KINGDOM OF OPENGATHER: SUNKEN SANCTUARY" : "OAKHAVEN GLADE WORLD MAP"}
+                    {mapType === "new"
+                      ? "KINGDOM OF OPENGATHER: SUNKEN SANCTUARY"
+                      : "OAKHAVEN GLADE WORLD MAP"}
                   </h3>
                   <div className="worldmap-subtitle">
-                    {activeQuestTitle ? `Active Quest: ${activeQuestTitle}` : "Explore, discover ancient relics, and restore the Sunken Core."}
+                    {activeQuestTitle
+                      ? `Active Quest: ${activeQuestTitle}`
+                      : "Procedural realm with mountain cliffs, whispering ponds, ancient citadels, and village manors."}
                   </div>
                 </div>
               </div>
@@ -271,57 +351,67 @@ export function MiniMap({
               </button>
             </div>
 
+            {/* Body */}
             <div className="worldmap-body">
               <div className="worldmap-canvas-wrapper">
                 <canvas
                   ref={fullCanvasRef}
-                  width={560}
-                  height={560}
+                  width={600}
+                  height={600}
                   className="worldmap-full-canvas"
                 />
+                <div className="worldmap-teleport-hint">
+                  💡 Select any landmark to instantly navigate there
+                </div>
               </div>
 
               <div className="worldmap-sidebar">
                 <div className="worldmap-panel">
                   <h4 className="worldmap-panel-title">
-                    <span>📍</span> Current Region
+                    <span>📍</span> Current Sector
                   </h4>
-                  <div style={{ color: "#38bdf8", fontWeight: 700, fontSize: "14px", marginBottom: "4px" }}>
-                    {currentRegion}
-                  </div>
-                  <div style={{ color: "#94a3b8", fontSize: "11px", fontFamily: "monospace" }}>
-                    Coordinates: X={Math.round(playerPos.x)}, Y={Math.round(playerPos.y)}
+                  <div className="worldmap-current-region">{currentRegion}</div>
+                  <div className="worldmap-current-coords">
+                    World Position: X={Math.round(playerPos.x)}, Y={Math.round(playerPos.y)}
                   </div>
                 </div>
 
                 <div className="worldmap-panel">
                   <h4 className="worldmap-panel-title">
-                    <span>🗺️</span> Map Legend
+                    <span>🗺️</span> Terrain & Landmark Legend
                   </h4>
                   <ul className="worldmap-legend-list">
                     <li className="worldmap-legend-item">
-                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#f59e0b" }} />
-                      <span>Hero (You)</span>
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#fbbf24" }} />
+                      <span>Adventurer (You)</span>
                     </li>
                     <li className="worldmap-legend-item">
                       <span className="worldmap-legend-dot" style={{ backgroundColor: "#38bdf8" }} />
-                      <span>Friendly NPCs</span>
+                      <span>Friendly Townfolk & NPCs</span>
                     </li>
                     <li className="worldmap-legend-item">
-                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#fbbf24" }} />
-                      <span>Sacred Altars & Relics</span>
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#0284c7" }} />
+                      <span>Whispering Deep Pond Waters</span>
                     </li>
                     <li className="worldmap-legend-item">
-                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#8492a6" }} />
-                      <span>Citadel Ruins & Walls</span>
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#475569" }} />
+                      <span>Mountain Cliffs & Escalades</span>
                     </li>
                     <li className="worldmap-legend-item">
-                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#d1a054" }} />
-                      <span>Cobblestone Highways</span>
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#cbd5e1" }} />
+                      <span>Climbing Stone Stairs</span>
                     </li>
                     <li className="worldmap-legend-item">
-                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#0c2818" }} />
-                      <span>Dense Ancient Forest</span>
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#b45309" }} />
+                      <span>Town Hall Manor & Cottages</span>
+                    </li>
+                    <li className="worldmap-legend-item">
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#d97706" }} />
+                      <span>Cobblestone King's Highway</span>
+                    </li>
+                    <li className="worldmap-legend-item">
+                      <span className="worldmap-legend-dot" style={{ backgroundColor: "#064e3b" }} />
+                      <span>Dense Ancient Perimeter Woods</span>
                     </li>
                   </ul>
                 </div>

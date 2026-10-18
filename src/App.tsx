@@ -372,7 +372,26 @@ function App() {
       deerWalk: "/animals/deer_walk.png",
       foxIdle: "/animals/fox_idle.png",
       foxWalk: "/animals/fox_walk.png",
-      tileset: "/tiles/RPGpack_sheet_2X.png",
+      grassTileset: "/tiles/cainos/tx_grass.png",
+      stoneTileset: "/tiles/cainos/tx_stone.png",
+      wallTileset: "/tiles/cainos/tx_wall.png",
+      structTileset: "/tiles/cainos/tx_struct.png",
+      propsTileset: "/tiles/cainos/tx_props.png",
+      plantTileset: "/tiles/cainos/tx_plant.png",
+      shadowPlantTileset: "/tiles/cainos/tx_shadow_plant.png",
+      forestTileset: "/tiles/gentle_forest/gentle forest v01.png",
+      house1: "/tiles/soppycraft/Sprites/pack_house_001.png",
+      house2: "/tiles/soppycraft/Sprites/pack_house_002.png",
+      house3: "/tiles/soppycraft/Sprites/pack_house_003.png",
+      house4: "/tiles/soppycraft/Sprites/pack_house_004.png",
+      tree1: "/tiles/soppycraft/Sprites/pack_tree_001.png",
+      tree2: "/tiles/soppycraft/Sprites/pack_tree_002.png",
+      waterPump: "/tiles/soppycraft/Sprites/pack_water_cuve_pump_full_001.png",
+      sproutGrass: "/tiles/sprout_lands/sprout_grass_and_hills.png",
+      sproutWater: "/tiles/sprout_lands/sprout_water_and_bridges.png",
+      sproutHouses: "/tiles/sprout_lands/sprout_houses_and_fences.png",
+      sproutPlants: "/tiles/sprout_lands/sprout_plants_and_trees.png",
+      sproutObjects: "/tiles/sprout_lands/sprout_objects_and_crops.png",
     };
 
     if (activeMapType === "legacy") {
@@ -651,13 +670,30 @@ function App() {
             y: player.position.y + delta.y,
           };
           const hitbox = getPlayerHitbox(next);
+          const pxMin = hitbox.position.x - 72;
+          const pxMax = hitbox.position.x + hitbox.width + 72;
+          const pyMin = hitbox.position.y - 72;
+          const pyMax = hitbox.position.y + hitbox.height + 72;
+
           for (const b of activeBoundaries) {
+            if (b.position.x < pxMin || b.position.x > pxMax || b.position.y < pyMin || b.position.y > pyMax) continue;
             if (checkCollision(hitbox, { position: b.position, width: b.width, height: b.height }))
               return true;
           }
           for (const other of allPlayers) {
             if (other === player) continue;
             if (checkCollision(hitbox, other)) return true;
+          }
+          for (const animal of animals) {
+            const animalBox = {
+              position: {
+                x: animal.x - animal.width / 2 + 2,
+                y: animal.y - animal.height / 2 + 2,
+              },
+              width: animal.width - 4,
+              height: animal.height - 4,
+            };
+            if (checkCollision(hitbox, animalBox)) return true;
           }
           return false;
         };
@@ -707,10 +743,11 @@ function App() {
           });
           if (!move) return clickPath.length > 0;
           player.moving = true;
-          player.image =
-            move.x !== 0
-              ? move.x > 0 ? player.sprites!.right : player.sprites!.left
-              : move.y > 0 ? player.sprites!.down : player.sprites!.up;
+          if (Math.abs(move.y) >= Math.abs(move.x)) {
+            player.image = move.y > 0 ? player.sprites!.down : player.sprites!.up;
+          } else {
+            player.image = move.x > 0 ? player.sprites!.right : player.sprites!.left;
+          }
           if (wouldCollide(move)) {
             clickPath = [];
             player.moving = false;
@@ -760,14 +797,28 @@ function App() {
             setPlayerHudFacing(facing);
           }
 
-          // Smooth Camera tracking per camera-systems skill
+          // Smooth Camera tracking with level-bounds clamping (per camera-systems skill)
           const targetCamX = player.position.x + player.width / 2;
           const targetCamY = player.position.y + player.height / 2;
           camera.position.x += (targetCamX - camera.position.x) * 0.15;
           camera.position.y += (targetCamY - camera.position.y) * 0.15;
 
-          // Clear Canvas
-          ctx.fillStyle = activeMapType === "new" ? "#1e293b" : "rgb(44 87 145)";
+          // Strictly clamp camera viewport to level dimensions so the outside void is NEVER exposed
+          const halfViewW = canvas.width / (2 * currentZoom);
+          const halfViewH = canvas.height / (2 * currentZoom);
+          if (mapW > 2 * halfViewW) {
+            camera.position.x = Math.max(halfViewW, Math.min(mapW - halfViewW, camera.position.x));
+          } else {
+            camera.position.x = mapW / 2;
+          }
+          if (mapH > 2 * halfViewH) {
+            camera.position.y = Math.max(halfViewH, Math.min(mapH - halfViewH, camera.position.y));
+          } else {
+            camera.position.y = mapH / 2;
+          }
+
+          // Clear Canvas with deep forest canopy green to prevent harsh blue void
+          ctx.fillStyle = activeMapType === "new" ? "#0c2615" : "rgb(44 87 145)";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
           // Render World
@@ -781,7 +832,7 @@ function App() {
           if (activeMapType === "new" && proceduralMap) {
             proceduralMap.draw(
               ctx,
-              imgs.tileset,
+              imgs,
               camera.position,
               canvas.width,
               canvas.height,
@@ -819,7 +870,7 @@ function App() {
           drawEnvironment(ctx, envSystem);
 
           // 5. Autonomous Meadow Animals
-          updateAnimals(animals, player.position.x, player.position.y);
+          updateAnimals(animals, player.position.x, player.position.y, player.width, player.height);
           drawAnimals(ctx, animals, animalSprites);
 
           // 6. Animate NPCs: breathing bobbing & turning to face player within 85px
@@ -910,44 +961,93 @@ function App() {
             ctx.restore();
           }
 
+          // 11. Mysterious Cozy World Lighting (Auras & Glows)
+          if (activeMapType === "new") {
+            ctx.save();
+            // Player Torch / Lantern Halo
+            const pX = player.position.x + player.width / 2;
+            const pY = player.position.y + player.height / 2;
+            const playerGlow = ctx.createRadialGradient(pX, pY, 8, pX, pY, 120);
+            playerGlow.addColorStop(0, "rgba(255, 215, 140, 0.22)");
+            playerGlow.addColorStop(0.5, "rgba(245, 158, 11, 0.08)");
+            playerGlow.addColorStop(1, "rgba(245, 158, 11, 0)");
+            ctx.fillStyle = playerGlow;
+            ctx.beginPath();
+            ctx.arc(pX, pY, 120, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Floating Forest Fireflies / Motes
+            for (let i = 0; i < 18; i++) {
+              const moteX = ((i * 317 + now * 0.02) % 3600) + 700;
+              const moteY = ((i * 491 + Math.sin(now * 0.0015 + i) * 60 + now * 0.01) % 3600) + 700;
+              const moteAlpha = 0.35 + Math.sin(now * 0.003 + i * 2) * 0.3;
+              if (moteAlpha > 0) {
+                ctx.fillStyle = `rgba(254, 240, 138, ${moteAlpha})`;
+                ctx.beginPath();
+                ctx.arc(moteX, moteY, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+            ctx.restore();
+          }
+
           ctx.restore();
 
-          // 10. Vector-Based Movement with Wall-Sliding
+          // 12. Screen-Space Atmospheric Vignette & Cozy Color Grading
+          if (activeMapType === "new") {
+            ctx.save();
+            const w = canvas.width;
+            const h = canvas.height;
+            const vigGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+            vigGrad.addColorStop(0, "rgba(0, 0, 0, 0)");
+            vigGrad.addColorStop(1, "rgba(8, 18, 14, 0.45)");
+            ctx.fillStyle = vigGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Subtle warm glade sunlight tint
+            ctx.fillStyle = "rgba(255, 230, 160, 0.035)";
+            ctx.fillRect(0, 0, w, h);
+            ctx.restore();
+          }
+
+          // 13. Classic 4-Directional Movement (Strictly One Direction at a Time, Zero Crab-Walking)
           let moved = false;
           player.moving = false;
 
           if (!activeDialogueRef.current) {
-            let inputX = 0;
-            let inputY = 0;
-            if (keys.w) inputY -= 1;
-            if (keys.s) inputY += 1;
-            if (keys.a) inputX -= 1;
-            if (keys.d) inputX += 1;
+            const activeKey = keyOrder[keyOrder.length - 1];
+            const pace = getPaceSpeed();
 
-            if (inputX !== 0 || inputY !== 0) {
+            if (activeKey === "w" && keys.w) {
               clickPath = [];
+              player.image = player.sprites!.up;
               player.moving = true;
-              const pace = getPaceSpeed();
-
-              // Normalize diagonal vector so diagonal speed is consistent
-              const length = Math.hypot(inputX, inputY);
-              const vx = (inputX / length) * pace;
-              const vy = (inputY / length) * pace;
-
-              // Set sprite facing based on primary axis
-              if (Math.abs(inputX) >= Math.abs(inputY)) {
-                player.image = inputX > 0 ? player.sprites!.right : player.sprites!.left;
-              } else {
-                player.image = inputY > 0 ? player.sprites!.down : player.sprites!.up;
-              }
-
-              // Smooth Wall-Sliding: check X and Y separately
-              if (vx !== 0 && !wouldCollide({ x: vx, y: 0 })) {
-                movePlayer({ x: vx, y: 0 });
+              if (!wouldCollide({ x: 0, y: -pace })) {
+                movePlayer({ x: 0, y: -pace });
                 moved = true;
               }
-              if (vy !== 0 && !wouldCollide({ x: 0, y: vy })) {
-                movePlayer({ x: 0, y: vy });
+            } else if (activeKey === "a" && keys.a) {
+              clickPath = [];
+              player.image = player.sprites!.left;
+              player.moving = true;
+              if (!wouldCollide({ x: -pace, y: 0 })) {
+                movePlayer({ x: -pace, y: 0 });
+                moved = true;
+              }
+            } else if (activeKey === "s" && keys.s) {
+              clickPath = [];
+              player.image = player.sprites!.down;
+              player.moving = true;
+              if (!wouldCollide({ x: 0, y: pace })) {
+                movePlayer({ x: 0, y: pace });
+                moved = true;
+              }
+            } else if (activeKey === "d" && keys.d) {
+              clickPath = [];
+              player.image = player.sprites!.right;
+              player.moving = true;
+              if (!wouldCollide({ x: pace, y: 0 })) {
+                movePlayer({ x: pace, y: 0 });
                 moved = true;
               }
             } else {
@@ -1120,8 +1220,8 @@ function App() {
                 playerPos={playerHudPos}
                 playerFacing={playerHudFacing}
                 pois={currentActivePOIs}
-                worldWidth={settings.selectedMap === "new" ? (activeProceduralMap?.width ?? 4096) : 4096}
-                worldHeight={settings.selectedMap === "new" ? (activeProceduralMap?.height ?? 4096) : 2304}
+                worldWidth={settings.selectedMap === "new" ? (activeProceduralMap?.width ?? 5120) : 4096}
+                worldHeight={settings.selectedMap === "new" ? (activeProceduralMap?.height ?? 5120) : 2304}
                 mapType={settings.selectedMap || "new"}
                 proceduralMap={activeProceduralMap}
                 onTeleport={(x, y) => {

@@ -333,8 +333,17 @@ export function createMeadowAnimals(mapType: "legacy" | "new"): Animal[] {
   }
 }
 
-// Update animal behaviors & animation frames
-export function updateAnimals(animals: Animal[], playerX: number, playerY: number) {
+// Update animal behaviors & animation frames with solid player collision prevention
+export function updateAnimals(
+  animals: Animal[],
+  playerX: number,
+  playerY: number,
+  playerW = 48,
+  playerH = 68,
+) {
+  const pCenterX = playerX + playerW / 2;
+  const pCenterY = playerY + playerH / 2;
+
   for (const animal of animals) {
     animal.frameElapsed++;
     const frameDelay = animal.state === "flee" ? 3 : 6;
@@ -344,15 +353,25 @@ export function updateAnimals(animals: Animal[], playerX: number, playerY: numbe
       animal.frameIndex = (animal.frameIndex + 1) % maxF;
     }
 
-    // Distance to player
-    const distToPlayer = Math.hypot(animal.x - playerX, animal.y - playerY);
+    // Distance from animal center to player center
+    const distToPlayer = Math.hypot(animal.x - pCenterX, animal.y - pCenterY);
+    const minSafeDist = Math.max(32, animal.width / 2 + 24);
 
-    // Rabbit / Fox / Deer reacts if player gets too close
-    if (distToPlayer < 75 && animal.state !== "flee") {
+    // Hard collision push-out so animal can NEVER overlap with player
+    if (distToPlayer < minSafeDist) {
+      const escapeAngle = distToPlayer > 0.1 ? Math.atan2(animal.y - pCenterY, animal.x - pCenterX) : Math.random() * Math.PI * 2;
+      animal.x = pCenterX + Math.cos(escapeAngle) * minSafeDist;
+      animal.y = pCenterY + Math.sin(escapeAngle) * minSafeDist;
+      animal.state = "flee";
+      animal.stateTimer = 80;
+      animal.targetX = animal.x + Math.cos(escapeAngle) * 100;
+      animal.targetY = animal.y + Math.sin(escapeAngle) * 100;
+      animal.facing = animal.targetX >= animal.x ? 1 : -1;
+    } else if (distToPlayer < 85 && animal.state !== "flee") {
+      // Rabbit / Fox / Deer reacts proactively if player gets nearby
       animal.state = "flee";
       animal.stateTimer = 90;
-      // Flee in opposite direction from player
-      const angle = Math.atan2(animal.y - playerY, animal.x - playerX);
+      const angle = Math.atan2(animal.y - pCenterY, animal.x - pCenterX);
       animal.targetX = animal.x + Math.cos(angle) * 120;
       animal.targetY = animal.y + Math.sin(angle) * 120;
       animal.facing = animal.targetX > animal.x ? 1 : -1;
@@ -366,9 +385,23 @@ export function updateAnimals(animals: Animal[], playerX: number, playerY: numbe
       const speed = animal.state === "flee" ? animal.baseSpeed * 2.2 : animal.baseSpeed;
 
       if (dist > 4) {
-        animal.x += (dx / dist) * speed;
-        animal.y += (dy / dist) * speed;
-        animal.facing = dx >= 0 ? 1 : -1;
+        const stepX = (dx / dist) * speed;
+        const stepY = (dy / dist) * speed;
+        const nextX = animal.x + stepX;
+        const nextY = animal.y + stepY;
+        const nextDist = Math.hypot(nextX - pCenterX, nextY - pCenterY);
+
+        // Only take step if it doesn't move inside the player
+        if (nextDist >= minSafeDist) {
+          animal.x = nextX;
+          animal.y = nextY;
+          animal.facing = dx >= 0 ? 1 : -1;
+        } else {
+          // Re-target away from player
+          const escapeAngle = Math.atan2(animal.y - pCenterY, animal.x - pCenterX);
+          animal.targetX = animal.x + Math.cos(escapeAngle) * 90;
+          animal.targetY = animal.y + Math.sin(escapeAngle) * 90;
+        }
       } else {
         // Reached target, transition to grazing/idle
         animal.state = Math.random() > 0.4 ? "idle" : "graze";
