@@ -175,3 +175,81 @@ To prevent camera exposure of the raw canvas background:
 - [x] MiniMap and Backpack HUD remain in distinct quadrants without spatial collisions.
 - [x] Tree roots are grounded in ambient drop shadows with wind sway applied only to the upper foliage canopy.
 - [x] Outer perimeter forest barrier prevents camera view of the dark navy void.
+
+---
+
+## 8. Discrete 5-Layer Tilemap Engine Architecture
+
+### 8.1 Elimination of Cropped Images and Baked Background Seams
+Cropping composite buildings or stairs from pre-rendered map graphics (such as `BackgroundTerrain.png` or `pack_house_001.png`) inevitably bakes surrounding terrain pixels (opaque green grass or brick backgrounds) into the sprite bounding box. When placed over varying ground types (cobblestone roads, water shorelines, or highland turf), these cropped images display disfiguring rectangular background seams.
+
+To achieve state-of-the-art 2.5D visual excellence, the engine was re-architected into a **Strict 5-Layer Discrete Tilemap Engine** utilizing exclusively transparent spritesheets (`tx_grass.png`, `tx_stone.png`, `tx_wall.png`, `tx_struct.png`, `tx_props.png`, and `tx_plant.png`):
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│ Layer 5: Overhead Roofs, Battlements & Canopies (drawForeground)│
+├───────────────────────────────────────────────────────────────┤
+│ [Y-SORTED ENTITIES: Player, NPCs, Wildlife, Companions]       │
+├───────────────────────────────────────────────────────────────┤
+│ Layer 4: Building Walls, Doors, Windows, Props & Tree Trunks   │
+├───────────────────────────────────────────────────────────────┤
+│ Layer 3: Cliffs, Stone Retaining Walls & Carved Stone Stairs   │
+├───────────────────────────────────────────────────────────────┤
+│ Layer 2: Ground Detail, Pathways, Shorelines & Stone Bridge   │
+├───────────────────────────────────────────────────────────────┤
+│ Layer 1: Ground Base (Grass, Wildflowers, Deep Water, Woods)   │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 Layer Specifications
+1. **Layer 1: Ground Base (`grid: number[][]`)**
+   - Pure lush green turf (`tx_grass.png` col 0, row 0).
+   - Yellow and white wildflower meadows (`tx_grass.png` cols 1-2, row 0).
+   - Deep crystalline water basin with animated specular ripples.
+   - Ancient perimeter border woods preventing camera exposure.
+2. **Layer 2: Ground Detail & Pathways (`detailGrid: number[][]`)**
+   - Cobblestone King's Highway (`tx_stone.png` col 0, row 0).
+   - Arched stone bridge deck (`tx_stone.png` col 1, row 0) with side stone parapets.
+   - Organic translucent water shoreline foam borders smoothly blending land into water.
+3. **Layer 3: Cliffs & Carved Stone Stairs (`cliffGrid: number[][]`)**
+   - Highland Plateau Stone Retaining Wall:
+     - Top wall coping (`tx_wall.png` sx=32, sy=0).
+     - Vertical stone retaining wall face (`tx_wall.png` sx=32, sy=32).
+     - NW and NE wall corners (`tx_wall.png` sx=0, 96, sy=0).
+   - Wide Carved Stone Stairs (`tx_struct.png` rows 10-11, cols 1-4):
+     - Left handrail (`sx: 32, sy: 320, sw: 32, sh: 64`).
+     - Center carved stone steps (`sx: 64, sy: 320` and `sx: 96, sy: 320`).
+     - Right handrail (`sx: 128, sy: 320, sw: 32, sh: 64`).
+     - Retaining wall is solid (`collisionGrid = 1025`), while the stairs are open and walkable (`collisionGrid = 0`).
+4. **Layer 4: Building Walls, Props & Tree Trunks (`structureTiles: TilePlacement[]`)**
+   - **Grand Oakhaven Townhall Manor** (Cols 37..42, Rows 42..45):
+     - Assembled tile-by-tile: Ashlar stone wall blocks, arched double wooden entrance doors (`tx_struct.png` sx=64..96, sy=416), stained glass window walls, and stone corbel cornices.
+   - **Harbor Outpost Guardhouse** (Cols 30..33, Rows 44..46):
+     - Fortified stone walls with reinforced oak door and arrow slits.
+   - **Silas's Timber Cottage** (Cols 46..49, Rows 45..47):
+     - Rustic timber corner posts, cottage wooden door, and cottage windows.
+   - **Highland Sacred Sun Altar** (Cols 52..55, Rows 14..15):
+     - Stone dais platform, carved sun altar table (`tx_props.png`), and monolith columns (`tx_struct.png`).
+   - **Village Props & Lake Pier**:
+     - Circular Stone Well (`tx_props.png` sx=416, sy=352, sw=64, sh=64).
+     - Town Water Pump & Stone Trough (`tx_props.png` sx=96, sy=0).
+     - Forgotten Relic Chest (`tx_props.png` sx=96, sy=32).
+     - Market cider barrels & crates (`tx_props.png` sx=32, sy=0).
+     - Carved Stone Benches (`tx_props.png` sx=288, sy=0).
+     - Whispering Lake Wooden Boat Dock (`tx_struct.png` sx=32, sy=32).
+   - **Tree Trunks with Ground Contact Shadows**:
+     - Contact drop shadow ellipse (`rgba(10, 20, 15, 0.4)`).
+     - Rooted oak, pine, and birch trunks (`tx_plant.png`).
+5. **Layer 5: Overhead Roofs & Canopies (`overheadTiles: TilePlacement[]`)**
+   - Rendered in `drawForeground` **on top of the player** with authentic depth:
+     - Townhall Gabled Slate Roof: sloped eaves, slate center tiles, roof ridge, and stone chimney.
+     - Guardhouse Crenellated Stone Battlements.
+     - Silas's Cottage Wooden Shingle Roof.
+     - Lush tree canopy crowns (`tx_plant.png`) with gentle animated wind sway.
+     - Player can freely walk behind roofs and under tree canopies with pixel-perfect occlusion.
+
+### 8.3 Double-Click Pathfinding & Collision Integration
+- Previously, double-click pathfinding queried the legacy 40×70 collision map, resulting in empty paths or blocked navigation in the new 80×80 procedural map.
+- The pathfinding engine now dynamically binds to `effectiveCollisionsMap` (`proceduralMap.collisionGrid` when in `"new"` map mode).
+- Walkable bridges and uphill stairs have `collisionGrid = 0`, enabling smooth A* auto-walk pathing across water and up to the highland terrace.
+

@@ -122,7 +122,7 @@ export class Boundary {
     static width = 64;
     static height = 64;
 
-    ctx: CanvasRenderingContext2D;
+    ctx?: CanvasRenderingContext2D;
     position: { x: number; y: number };
     width: number;
     height: number;
@@ -133,7 +133,7 @@ export class Boundary {
         width = Boundary.width,
         height = Boundary.height,
     }: {
-        ctx: CanvasRenderingContext2D;
+        ctx?: CanvasRenderingContext2D;
         position: { x: number; y: number };
         width?: number;
         height?: number;
@@ -145,6 +145,7 @@ export class Boundary {
     }
 
     draw() {
+        if (!this.ctx) return;
         this.ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
         this.ctx.fillRect(
             this.position.x,

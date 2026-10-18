@@ -379,19 +379,6 @@ function App() {
       propsTileset: "/tiles/cainos/tx_props.png",
       plantTileset: "/tiles/cainos/tx_plant.png",
       shadowPlantTileset: "/tiles/cainos/tx_shadow_plant.png",
-      forestTileset: "/tiles/gentle_forest/gentle forest v01.png",
-      house1: "/tiles/soppycraft/Sprites/pack_house_001.png",
-      house2: "/tiles/soppycraft/Sprites/pack_house_002.png",
-      house3: "/tiles/soppycraft/Sprites/pack_house_003.png",
-      house4: "/tiles/soppycraft/Sprites/pack_house_004.png",
-      tree1: "/tiles/soppycraft/Sprites/pack_tree_001.png",
-      tree2: "/tiles/soppycraft/Sprites/pack_tree_002.png",
-      waterPump: "/tiles/soppycraft/Sprites/pack_water_cuve_pump_full_001.png",
-      sproutGrass: "/tiles/sprout_lands/sprout_grass_and_hills.png",
-      sproutWater: "/tiles/sprout_lands/sprout_water_and_bridges.png",
-      sproutHouses: "/tiles/sprout_lands/sprout_houses_and_fences.png",
-      sproutPlants: "/tiles/sprout_lands/sprout_plants_and_trees.png",
-      sproutObjects: "/tiles/sprout_lands/sprout_objects_and_crops.png",
     };
 
     if (activeMapType === "legacy") {
@@ -703,6 +690,11 @@ function App() {
           player.position.y += delta.y;
         };
 
+        const effectiveCollisionsMap =
+          activeMapType === "new" && proceduralMap?.collisionGrid
+            ? proceduralMap.collisionGrid
+            : collisionsMap;
+
         const handleDblClick = (e: MouseEvent) => {
           if (!settingsRef.current.clickToMove || activeDialogueRef.current) return;
           e.preventDefault();
@@ -710,7 +702,7 @@ function App() {
           clickPath = buildClickPath({
             center: playerCenter(),
             target,
-            collisionsMap,
+            collisionsMap: effectiveCollisionsMap,
             mapOrigin: mapOrigin(),
             playerSize: playerSize(),
           });
@@ -910,6 +902,7 @@ function App() {
               canvas.height,
               currentZoom,
               now * 0.001,
+              imgs,
             );
           } else if (forground) {
             forground.draw();

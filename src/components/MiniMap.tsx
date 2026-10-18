@@ -3,12 +3,15 @@ import type { InteractablePOI } from "../game/story";
 import type { ProceduralMap } from "../game/mapGenerator";
 import {
   TILE_WATER_DEEP,
-  TILE_WATER_BANK_N,
-  TILE_WATER_CORNER_SE,
-  TILE_CLIFF_TOP_N,
-  TILE_CLIFF_CORNER_SE,
-  TILE_CLIFF_STAIRS,
   TILE_HIGHLAND_GRASS,
+  TILE_PERIMETER_WOODS,
+  TILE_ROAD_COBBLESTONE,
+  TILE_STONE_BRIDGE,
+  TILE_CLIFF_COPING_H,
+  TILE_CLIFF_FACE_WALL,
+  TILE_CLIFF_STAIRS_L,
+  TILE_CLIFF_STAIRS_C,
+  TILE_CLIFF_STAIRS_R,
 } from "../game/mapGenerator";
 import { audioManager } from "../game/audioManager";
 import "./MiniMap.css";
@@ -90,42 +93,53 @@ export function MiniMap({
 
       // 1. Draw base terrain background
       if (mapType === "new" && proceduralMap) {
-        const { cols, rows, grid, compoundStructures } = proceduralMap;
+        const { cols, rows, grid, detailGrid, cliffGrid, compoundStructures } = proceduralMap;
         const cellW = cvWidth / cols;
         const cellH = cvHeight / rows;
 
+        // Layer 1: Ground Base
         for (let r = 0; r < rows; r++) {
           for (let col = 0; col < cols; col++) {
             const tileIdx = grid[r]?.[col] ?? 0;
 
-            // Accurate Biome Color Mapping
-            if (tileIdx === 17) {
+            if (tileIdx === TILE_PERIMETER_WOODS) {
               c.fillStyle = "#064e3b"; // Ancient Perimeter Forest (dense dark pine)
             } else if (tileIdx === TILE_WATER_DEEP) {
               c.fillStyle = "#0284c7"; // Deep Sapphire Water
-            } else if (tileIdx >= TILE_WATER_BANK_N && tileIdx <= TILE_WATER_CORNER_SE) {
-              c.fillStyle = "#38bdf8"; // Whispering Pond Shoreline
-            } else if (tileIdx >= TILE_CLIFF_TOP_N && tileIdx <= TILE_CLIFF_CORNER_SE) {
-              c.fillStyle = "#475569"; // Mountain Cliff Rock Face
-            } else if (tileIdx === TILE_CLIFF_STAIRS) {
-              c.fillStyle = "#cbd5e1"; // Carved Stone Mountain Ramp
             } else if (tileIdx === TILE_HIGHLAND_GRASS) {
               c.fillStyle = "#15803d"; // Highland Plateau Emerald
-            } else if (tileIdx === 4) {
-              c.fillStyle = "#d97706"; // Cobblestone Highway
-            } else if (tileIdx === 5 || (tileIdx >= 6 && tileIdx <= 14)) {
-              c.fillStyle = "#94a3b8"; // Sunken Citadel Slate & Walls
-            } else if (tileIdx === 15 || tileIdx === 16) {
-              c.fillStyle = "#cbd5e1"; // Stone Stairs & Gateways
-            } else if (tileIdx === 3) {
-              c.fillStyle = "#166534"; // Forest Understory
-            } else if (tileIdx === 1 || tileIdx === 2) {
-              c.fillStyle = "#4ade80"; // Wildflower Glade Meadows
             } else {
               c.fillStyle = "#22c55e"; // Lush Open Grasslands
             }
 
             c.fillRect(col * cellW, r * cellH, cellW + 0.6, cellH + 0.6);
+
+            // Layer 2: Ground Detail (Roads, Water Shorelines, Bridge)
+            if (detailGrid) {
+              const d = detailGrid[r]?.[col];
+              if (d === TILE_ROAD_COBBLESTONE) {
+                c.fillStyle = "#d97706";
+                c.fillRect(col * cellW, r * cellH, cellW + 0.6, cellH + 0.6);
+              } else if (d === TILE_STONE_BRIDGE) {
+                c.fillStyle = "#cbd5e1";
+                c.fillRect(col * cellW, r * cellH, cellW + 0.6, cellH + 0.6);
+              } else if (d >= 19 && d <= 26) {
+                c.fillStyle = "#38bdf8";
+                c.fillRect(col * cellW, r * cellH, cellW + 0.6, cellH + 0.6);
+              }
+            }
+
+            // Layer 3: Cliffs & Stairs
+            if (cliffGrid) {
+              const cl = cliffGrid[r]?.[col];
+              if (cl === TILE_CLIFF_COPING_H || cl === TILE_CLIFF_FACE_WALL) {
+                c.fillStyle = "#475569";
+                c.fillRect(col * cellW, r * cellH, cellW + 0.6, cellH + 0.6);
+              } else if (cl === TILE_CLIFF_STAIRS_L || cl === TILE_CLIFF_STAIRS_C || cl === TILE_CLIFF_STAIRS_R) {
+                c.fillStyle = "#cbd5e1";
+                c.fillRect(col * cellW, r * cellH, cellW + 0.6, cellH + 0.6);
+              }
+            }
           }
         }
 
@@ -261,14 +275,6 @@ export function MiniMap({
     <>
       {/* ─── Circular Brass Astrolabe Compass MiniMap HUD ─── */}
       <div className="minimap-anchor-wrap">
-        {/* Floating Region & Coordinates Header */}
-        <div className="minimap-header-pill">
-          <span className="minimap-region-name">{currentRegion}</span>
-          <span className="minimap-coords-badge">
-            {Math.round(playerPos.x)}, {Math.round(playerPos.y)}
-          </span>
-        </div>
-
         {/* Circular Compass Device Housing */}
         <div
           className="minimap-compass-casing"
